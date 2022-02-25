@@ -4,6 +4,26 @@ from pyftpdlib.handlers import FTPHandler
 from pyftpdlib.servers import FTPServer
 import socket
 
+# Used to display logging to stdout
+import logging.config
+import sys
+
+#######################################
+# Global Logger
+#######################################
+# Set logging configuration
+logging.basicConfig(filename='fileServer.log', level=logging.DEBUG, filemode='w',
+                    format='%(asctime)s\t\tLogger: %(name)s\t\tLevel: %(levelname)s\t\tEvent: %(message)s',
+                    datefmt='%Y:%m:%d %H:%M:%S')
+
+# Create Logger
+serverLog = logging.getLogger("Server")
+
+# Create Handler, set level to at least DEBUG
+loggingHandler = logging.StreamHandler(sys.stdout)
+serverLog.addHandler(loggingHandler)
+
+
 
 def server_setup():
     # Instantiate a dummy authorizer for managing 'virtual' users
