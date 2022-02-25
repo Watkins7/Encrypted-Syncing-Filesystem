@@ -9,10 +9,11 @@ clientConnection = None
 
 quit = ["QUIT", "Q", "quit", "q", "exit", "EXIT", "E", "e"]
 listOfYes = ["yes", "y", "YES", "Y"]
+listOfNo = ["no", "n", "NO", "N"]
 list_of_known_servers = []
 is_file = ["F", "FILE", "f", "file", ]
 is_directory = ["D", "DIRECTORY", "d", "directory"]
-
+currentDirectory = ""
 
 # Prompts user for a server IP
 # If successful, prompts user for credentials
@@ -131,6 +132,53 @@ def open_program():
         print(e)
 
 
+# Delete 'file' or 'directory'
+def delete(ftp):
+
+    name = input("Enter name to delete\n >> ")
+
+    # Ask if user wants new path
+    while True:
+        print("Enter new path?\n >> ", end='')
+        ans = input().lower()
+
+        if ans in listOfYes or ans in listOfNo:
+            break
+
+    if ans in listOfNo:
+        try:
+            ftp.delete(name)
+            return
+
+        except Exception as e:
+            print(e)
+            return
+
+    else:
+        print("Enter existing path\n >> ", end='')
+        new_path = input()
+
+        try:
+            ftp.delete(new_path + name)
+            return
+
+        except Exception as e:
+            print(e)
+            return
+
+
+# navigate to new folder
+def navigate(ftp):
+
+    new_path = input("Enter new path\n >> ")
+
+    try:
+        ftp.cwd(new_path)
+        currentDirectory = new_path
+
+    except Execption as e:
+        print(e)
+
 # Display Help Menu
 def help(ftp):
     print("============================\n",
@@ -152,14 +200,16 @@ class Execption:
     pass
 
 if __name__ == '__main__':
+
     ftp = connect_to_server()
 
     if ftp:
 
         help(ftp)
+        currentDirectory = ftp.pwd()
 
         while 1:
-            print(" >> ", end='')
+            print("%s >> " % currentDirectory, end='')
             clientRequest = input().lower()
 
             # Create
@@ -175,9 +225,13 @@ if __name__ == '__main__':
             elif clientRequest == "write" or clientRequest == "w":
                 print("Not Implemented")
 
+            # read
+            elif clientRequest == "read" or clientRequest == "r":
+                print("Not Implemented")
+
             # Navigate
             elif clientRequest == "n" or clientRequest == "navigate":
-                print("Not Implemented")
+                navigate(ftp)
 
             # Back 1 Directory
             elif clientRequest == "b" or clientRequest == "back":
@@ -185,15 +239,22 @@ if __name__ == '__main__':
 
             # Delete
             elif clientRequest == "d" or clientRequest == "delete":
-                print("Not Implemented")
+                delete(ftp)
 
             # List
             elif clientRequest == "l" or clientRequest == "list":
                 try:
-                    ftp.retrlines('LIST')
-                except Exception as E:
-                    print('Error fetching file listing')
+                    #ftp.retrlines('LIST')
+                    #ftp.retrlines('LIST *README*')
+                    all_objects = ftp.nlst()
 
+                    for obj in all_objects:
+                        print(obj)
+
+                except Exception as E:
+                    print("Error: ", E)
+
+            # Open program with file
             elif clientRequest == "o" or clientRequest == "open" or clientRequest == "text editor" or\
                 clientRequest == "open editor" or clientRequest == "open text editor" or\
                     clientRequest == "open text":
@@ -210,7 +271,7 @@ if __name__ == '__main__':
                 ftp.quit()
 
             # Help
-            if clientRequest == "help" or clientRequest == "h":
+            elif clientRequest == "help" or clientRequest == "h":
                 help()
 
             # Default
