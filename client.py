@@ -240,7 +240,7 @@ def read(ftp):
 
     sedfs_name = input("SEDFS file to download\n >> ")
     try:
-        ftp.retrbinary("RETR ",sedfs_name, print)
+        ftp.retrbinary("RETR " + sedfs_name, print)
     except Exception as E:
         print(E)
         return
