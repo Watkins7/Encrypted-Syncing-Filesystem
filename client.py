@@ -322,7 +322,7 @@ if __name__ == '__main__':
 
             # Help
             elif clientRequest == "help" or clientRequest == "h":
-                help()
+                help(ftp)
 
             # Default
             else:
