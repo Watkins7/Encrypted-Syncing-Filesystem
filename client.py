@@ -179,6 +179,28 @@ def navigate(ftp):
     except Execption as e:
         print(e)
 
+
+# list all current files and directories
+def ftp_list(ftp):
+    try:
+        # ftp.retrlines('LIST')
+        # ftp.retrlines('LIST *README*')
+        all_objects = ftp.nlst()
+
+        for obj in all_objects:
+            print(obj)
+
+    except Exception as E:
+        print("Error: ", E)
+
+
+# change file permissions
+def change_permissions(ftp):
+    filename = input("Input filename\n >> ")
+    permissions = input("Input new permissions\n >> ").strip()
+    ftp.sendcmd("SITE " + permissions + " " + filename)
+
+
 # Display Help Menu
 def help(ftp):
     print("============================\n",
@@ -186,6 +208,7 @@ def help(ftp):
           "\t'q' == Quit SEDFS\n",
           "\t'r' == Read SEDFS file\n",
           "\t'w' == Write to SEDFS\n",
+          "\t'p' == Change permissions\n",
           "\t'c' == Create new SEDFS file/directory\n",
           "\t'n' == Navigate to new directory\n",
           "\t'b' == Move back 1 directory\n",
@@ -194,6 +217,35 @@ def help(ftp):
           "\t's' == Display Server Information\n",
           "\t'o' == Open Text Editor\n",
           "\t'h' == Help\n")
+
+
+# write to SEDFS
+def write(ftp):
+
+    local_name = input("Local file to upload\n >> ")
+    try:
+        file = open(local_name, 'rb')
+    except Exception as E:
+        print(E)
+        return
+
+    try:
+        ftp.storbinary('STOR ', local_name, file)  # send the file
+        file.close()
+    except Exception as E:
+        print(E)
+
+
+def read(ftp):
+
+    sedfs_name = input("SEDFS file to download\n >> ")
+    try:
+        ftp.retrbinary("RETR ",sedfs_name, print)
+    except Exception as E:
+        print(E)
+        return
+
+
 
 
 class Execption:
@@ -223,11 +275,18 @@ if __name__ == '__main__':
 
             # Write
             elif clientRequest == "write" or clientRequest == "w":
-                print("Not Implemented")
+                print("Not Tested")
+                write(ftp)
 
             # read
             elif clientRequest == "read" or clientRequest == "r":
-                print("Not Implemented")
+                print("Not Tested")
+                read(ftp)
+
+            # change permissions
+            elif clientRequest == "permissions" or clientRequest == "p":
+                print("Not tested")
+                change_permissions(ftp)
 
             # Navigate
             elif clientRequest == "n" or clientRequest == "navigate":
@@ -243,16 +302,7 @@ if __name__ == '__main__':
 
             # List
             elif clientRequest == "l" or clientRequest == "list":
-                try:
-                    #ftp.retrlines('LIST')
-                    #ftp.retrlines('LIST *README*')
-                    all_objects = ftp.nlst()
-
-                    for obj in all_objects:
-                        print(obj)
-
-                except Exception as E:
-                    print("Error: ", E)
+                ftp_list(ftp)
 
             # Open program with file
             elif clientRequest == "o" or clientRequest == "open" or clientRequest == "text editor" or\

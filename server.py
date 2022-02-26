@@ -36,6 +36,7 @@ serverLog.setLevel(logging.DEBUG)
 
 class SEDFS_server(FTPServer):
 
+    # init for child class
     def __init__(self, address, childHandler):
 
         # init Parent Class
@@ -46,18 +47,21 @@ class SEDFS_server(FTPServer):
 
 class SEDFS_handler(FTPHandler):
 
-    user = ""
+    user = ""       # save global username
 
-
+    # child handler init
     def __init__(self, conn, server, ioloop):
 
+        # Log handler event
         print(datetime.now().strftime("DATE: %Y:%m:%d\tTIME: %H:%M:%S\tEVENT: "), end="")
         serverLog.info("[+] SEDFS Handle Started")
 
+        # parent handler init
         FTPHandler.__init__(self, conn, server, ioloop)
 
         return
 
+    # Polymorph of on_login
     def on_login(self, username):
         user = username
         self.on_login(username)
@@ -123,7 +127,7 @@ def SEDFS_setup():
     server = SEDFS_server(address, handler)
 
     # set a limit for connections
-    server.max_cons = 256
+    server.max_cons = 100000
     server.max_cons_per_ip = 5
 
     # start ftp server
