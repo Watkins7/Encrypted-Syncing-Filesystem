@@ -235,7 +235,7 @@ def write(ftp):
     except Exception as E:
         print(E)
 
-
+# read from sedfs
 def read(ftp):
 
     sedfs_name = input("SEDFS file to download\n >> ")
@@ -246,6 +246,12 @@ def read(ftp):
         return
 
 
+def go_back(ftp):
+
+    try:
+        ftp.cwd("../")
+    except Exception as E:
+        print(E)
 
 
 class Execption:
@@ -294,7 +300,8 @@ if __name__ == '__main__':
 
             # Back 1 Directory
             elif clientRequest == "b" or clientRequest == "back":
-                print("Not Implemented")
+                print("Not tested")
+                go_back(ftp)
 
             # Delete
             elif clientRequest == "d" or clientRequest == "delete":
