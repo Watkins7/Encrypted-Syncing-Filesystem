@@ -5,6 +5,7 @@ from pyftpdlib.authorizers import DummyAuthorizer
 from pyftpdlib.handlers import FTPHandler
 from pyftpdlib.servers import FTPServer
 import socket
+import csync
 
 # Used to display logging to stdout
 import logging.config
@@ -21,9 +22,9 @@ logging.basicConfig(filename='fileServer.log', level=logging.DEBUG, filemode='w'
                     format='%(asctime)s\tLogger: %(name)s\tLevel: %(levelname)s\tEvent: %(message)s',
                     datefmt='%Y:%m:%d %H:%M:%S')
 
-#logging.basicConfig(filename='fileServer.log', level=logging.DEBUG, filemode='w',
-                    #format='%(asctime)s\tLogger: %(name)s\tLevel: %(levelname)s\tEvent: %(message)s',
-                    #datefmt='%Y:%m:%d %H:%M:%S')
+# logging.basicConfig(filename='fileServer.log', level=logging.DEBUG, filemode='w',
+# format='%(asctime)s\tLogger: %(name)s\tLevel: %(levelname)s\tEvent: %(message)s',
+# datefmt='%Y:%m:%d %H:%M:%S')
 
 # Create Logger
 serverLog = logging.getLogger("SEDFS Server")
@@ -34,11 +35,14 @@ serverLog.addHandler(loggingHandler)
 serverLog.setLevel(logging.DEBUG)
 
 
+known_servers = []
+listOfNo = ["no", "n", "NO", "N"]
+
+
 class SEDFS_server(FTPServer):
 
     # init for child class
     def __init__(self, address, childHandler):
-
         # init Parent Class
         FTPServer.__init__(self, address, childHandler)
 
@@ -46,68 +50,80 @@ class SEDFS_server(FTPServer):
 
 
 class SEDFS_handler(FTPHandler):
-
-    user = ""       # save global username
+    user = ""  # save global username
 
     # child handler init
     def __init__(self, conn, server, ioloop):
-
         # Log handler event
         print(datetime.now().strftime("DATE: %Y:%m:%d\tTIME: %H:%M:%S\tEVENT: "), end="")
         serverLog.info("[+] SEDFS Handle Started")
 
         # parent handler init
-        FTPHandler.__init__(self, conn, server, ioloop)
+        FTPHandler.__init__(self, conn, server)
 
         return
 
     # Polymorph of on_login
-    def on_login(self, username):
-        user = username
-        self.on_login(username)
+    #def on_login(self, username):
+        #user = username
+        #self.on_login(username)
 
 
+# Configuration function for loading users
+def load_users(authorizer):
 
-"""
-def server_setup():
-    # Instantiate a dummy authorizer for managing 'virtual' users
-    authorizer = DummyAuthorizer()
+    print("Not Tested")
+    try:
+        file = open("userConfig.txt", mode='r')
+    except:
+        serverLog.info("[*] userConfig.txt, file not found")
+        return
 
-    # Define a new user having full r/w permissions and a read-only
-    # anonymous user
+    lines = file.readlines()
+    file.close()
 
-    authorizer.add_user('user', '12345', '.', perm='elradfmwMT')
+    for line in lines:
+        # remove whitespaces, delimiters, append to authorizedUsers
+        line = line.strip()
+        user = line.split(',')
 
-    # Instantiate FTP handler class
-    handler = FTPHandler
-    handler.authorizer = authorizer
+        # Create User Object and Append to "authorizedUsers"
+        try:
+            # USERNAME, PASSWORD, HOME, PERMISSIONS
+            authorizer.add_user(user[0], user[1], user[2], user[3])
+            serverLog.info("[+] New User added: %s" % user[0])
+        except Exception as E:
+            print(E)
 
-    # Define a customized banner (string returned when client connects)
-    handler.banner = " << Welcome to SEDFS (Simple Encrypted Distributed File System)"
+    return
 
-    # Specify a masquerade address and the range of ports to use for
-    # passive connections. Decomment in case you're behind a NAT.
-    # handler.masquerade_address = '151.25.42.11'
-    # handler.passive_ports = range(60000, 65535)
 
-    # Get local address information
-    server_IP = socket.gethostbyname(socket.gethostname())
-    address = (server_IP, 50000)
+def server_sync():
 
-    # Instantiate FTP server class and listen on ??????:50000
-    server = FTPServer(address, handler)
+    while 1:
+        print("Enter IP of server to sync\n >> ", end='')
+        serverIP = input().strip()
+        full_remote_path = input("Please enter the FULL REMOTE path of the directory\n >> ").strip()
 
-    # set a limit for connections
-    server.max_cons = 256
-    server.max_cons_per_ip = 5
 
-    # start ftp server
-    server.serve_forever()
-    
-"""
+        current_directory = os.getcwd()
+        current_directory.replace("\\", "/")
+        current_directory = current_directory + "/SEDFS"
+        full_string = "csync " + current_directory + " sftp://csync@" + serverIP +":50001" + full_remote_path
+
+        print("Attempting csync...", full_string)
+
+        try:
+            os.system(full_string)
+            known_servers.append(serverIP)
+        except Exception as E:
+            print(E)
+
+        ans = input("Do you wish to continue?\n >> ")
+        if ans in listOfNo:
+            break
 
 def SEDFS_setup():
-
     # Get local address information
     server_IP = socket.gethostbyname(socket.gethostname())
     address = (server_IP, 50000)
@@ -115,8 +131,13 @@ def SEDFS_setup():
     # Instantiate a dummy authorizer for managing 'virtual' users
     authorizer = DummyAuthorizer()
 
-    # username, password, home directory, permissions
-    authorizer.add_user('user', '12345', '/SEDFS', perm='elradfmwMT')
+    # if base directory doesnt exist, make it
+    if not os.path.exists("SEDFS"):
+        os.mkdir("SEDFS")
+
+    # LOAD username, password, home directory, permissions
+    authorizer.add_user('sudo', 'password', './SEDFS', perm='elradfmwMT')
+    load_users(authorizer)
 
     # Instantiate FTP handler class
     handler = SEDFS_handler
