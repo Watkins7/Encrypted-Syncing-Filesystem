@@ -151,6 +151,11 @@ def SEDFS_setup():
     server.max_cons = 100000
     server.max_cons_per_ip = 5
 
+    os.system("groupadd sedfs_ftp")
+    os.system("adduser shell=false --no-create-home group=sedfs_ftp --disabled-password --disable-login alice")
+
+
+
     # start ftp server
     server.serve_forever()
 
