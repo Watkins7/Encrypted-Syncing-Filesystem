@@ -5,7 +5,6 @@ from pyftpdlib.authorizers import DummyAuthorizer
 from pyftpdlib.handlers import FTPHandler
 from pyftpdlib.servers import FTPServer
 import socket
-import csync
 
 # Used to display logging to stdout
 import logging.config
@@ -33,7 +32,6 @@ serverLog = logging.getLogger("SEDFS Server")
 loggingHandler = logging.StreamHandler(stream=sys.stdout)
 serverLog.addHandler(loggingHandler)
 serverLog.setLevel(logging.DEBUG)
-
 
 known_servers = []
 listOfNo = ["no", "n", "NO", "N"]
@@ -64,25 +62,31 @@ class SEDFS_handler(FTPHandler):
         return
 
     # Polymorph of on_login
-    #def on_login(self, username):
-        #user = username
-        #self.on_login(username)
+    # def on_login(self, username):
+    # user = username
+    # self.on_login(username)
 
 
 # Configuration function for loading users
 def load_users(authorizer):
-
-    print("Not Tested")
     try:
-        file = open("userConfig.txt", mode='r')
+        file = open("configuration files/userConfig.txt", mode='r')
     except:
-        serverLog.info("[*] userConfig.txt, file not found")
+        serverLog.info("[*] WARNING configuration files/userConfig.txt not found, no users added")
         return
 
     lines = file.readlines()
     file.close()
 
+    # Try to add NEW SYSTEM GROUP sedfs
+    try:
+        os.system('sudo groupadd --system sedfs')
+
+    except Exception as E:
+        print(E)
+
     for line in lines:
+
         # remove whitespaces, delimiters, append to authorizedUsers
         line = line.strip()
         user = line.split(',')
@@ -91,7 +95,17 @@ def load_users(authorizer):
         try:
             # USERNAME, PASSWORD, HOME, PERMISSIONS
             authorizer.add_user(user[0], user[1], user[2], user[3])
-            serverLog.info("[+] New User added: %s" % user[0])
+            serverLog.info("[+] SEDFS User added: %s" % user[0])
+
+        except Exception as E:
+            print(E)
+
+        try:
+            os.system(
+                'sudo adduser --system --shell=/sbin/nologin --disabled-login --disabled-password --ingroup sedfs --no-create-home  --quiet ' +
+                user[0])
+            # serverLog.info("[+] Local System added: %s" % user[0])
+
         except Exception as E:
             print(E)
 
@@ -99,17 +113,15 @@ def load_users(authorizer):
 
 
 def server_sync():
-
     while 1:
         print("Enter IP of server to sync\n >> ", end='')
         serverIP = input().strip()
         full_remote_path = input("Please enter the FULL REMOTE path of the directory\n >> ").strip()
 
-
         current_directory = os.getcwd()
         current_directory.replace("\\", "/")
         current_directory = current_directory + "/SEDFS"
-        full_string = "csync " + current_directory + " sftp://csync@" + serverIP +":50001" + full_remote_path
+        full_string = "csync " + current_directory + " sftp://csync@" + serverIP + ":50001" + full_remote_path
 
         print("Attempting csync...", full_string)
 
@@ -122,6 +134,7 @@ def server_sync():
         ans = input("Do you wish to continue?\n >> ")
         if ans in listOfNo:
             break
+
 
 def SEDFS_setup():
     # Get local address information
