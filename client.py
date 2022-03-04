@@ -15,13 +15,13 @@ is_file = ["F", "FILE", "f", "file", ]
 is_directory = ["D", "DIRECTORY", "d", "directory"]
 currentDirectory = ""
 
+
 # Prompts user for a server IP
 # If successful, prompts user for credentials
 # Returns a FTP object on success
 def connect_to_server():
-
-    global clientConnection     # Global server IPS
-    new_ftp = FTP()             # return object
+    global clientConnection  # Global server IPS
+    new_ftp = FTP()  # return object
 
     # find a server connection
     while 1:
@@ -52,7 +52,7 @@ def connect_to_server():
         try:
             new_ftp.login(username, password)
             print(" << Login Success!")
-            new_ftp.set_pasv(True)                      # Set to passive mode if time out
+            new_ftp.set_pasv(True)  # Set to passive mode if time out
             break
 
         except Exception as e:
@@ -64,13 +64,12 @@ def connect_to_server():
         if response in listOfYes:
             return False
 
-    list_of_known_servers.append(serverIP)          # Append server information
-    return new_ftp                                  # return FTP object
+    list_of_known_servers.append(serverIP)  # Append server information
+    return new_ftp  # return FTP object
 
 
 # Makes a blank file or directory in SEDFS
 def create_blank_file_or_directory():
-
     # loop until user says 'FILE' or 'DIRECTORY'
     while True:
         print(" >> File (F) or Directory (D)\n >> ", end='')
@@ -109,7 +108,6 @@ def create_blank_file_or_directory():
 # Open Text Editor
 # Gets notepad on Windows, Nano on Linux
 def open_program():
-
     text_editor = input("\nPlease enter text editor:\n >> ")
     file = input("\nPlease enter file:\n >> ")
 
@@ -134,7 +132,6 @@ def open_program():
 
 # Delete 'file' or 'directory'
 def delete(ftp):
-
     name = input("Enter name to delete\n >> ")
 
     # Ask if user wants new path
@@ -169,7 +166,6 @@ def delete(ftp):
 
 # navigate to new folder
 def navigate(ftp):
-
     new_path = input("Enter new path\n >> ")
 
     try:
@@ -183,12 +179,13 @@ def navigate(ftp):
 # list all current files and directories
 def ftp_list(ftp):
     try:
-        # ftp.retrlines('LIST')
+
         # ftp.retrlines('LIST *README*')
-        all_objects = ftp.nlst()
+        # all_objects = ftp.nlst()
         print("\n\n-------Begin of List------\n")
-        for obj in all_objects:
-            print(obj)
+        # for obj in all_objects:
+        # print(obj)
+        ftp.retrlines('LIST')
         print("\n-------End of List------\n\n")
 
     except Exception as E:
@@ -199,7 +196,19 @@ def ftp_list(ftp):
 def change_permissions(ftp):
     filename = input("Input filename\n >> ")
     permissions = input("Input new permissions\n >> ").strip()
-    ftp.sendcmd("SITE " + permissions + " " + filename)
+    try:
+        ftp.sendcmd("SITE CHMOD" + permissions + " " + filename)
+    except Exception as E:
+        print(E)
+
+
+def change_owner(ftp):
+    filename = input("Input filename\n >> ")
+    owner = input("Input new owner\n >> ").strip()
+    try:
+        ftp.sendcmd("SITE CHOWN" + owner + " " + filename)
+    except Exception as E:
+        print(E)
 
 
 # Display Help Menu
@@ -217,12 +226,12 @@ def help(ftp):
           "\t'd' == Delete file/directory\n",
           "\t's' == Display Server Information\n",
           "\t'o' == Open Text Editor\n",
+          "\t'k' == Change Owner\n",
           "\t'h' == Help\n")
 
 
 # write to SEDFS
 def write(ftp):
-
     local_name = input("Enter Local file path to upload\n >> ")
     try:
         print("\n-------File uploading started------")
@@ -232,15 +241,15 @@ def write(ftp):
         return
 
     try:
-        ftp.storbinary('STOR '+ local_name, file)  # send the file
+        ftp.storbinary('STOR ' + local_name, file)  # send the file
         file.close()
         print("-------File has uploaded successfully------\n\n")
     except Exception as E:
         print(E)
 
+
 # read from sedfs
 def read(ftp):
-
     sedfs_name = input("Enter SEDFS file path to download\n >> ")
     try:
         print("\n\n-------Begin------\n")
@@ -252,7 +261,6 @@ def read(ftp):
 
 
 def go_back(ftp):
-
     try:
         ftp.cwd("../")
     except Exception as E:
@@ -261,6 +269,7 @@ def go_back(ftp):
 
 class Execption:
     pass
+
 
 if __name__ == '__main__':
 
@@ -272,8 +281,8 @@ if __name__ == '__main__':
         currentDirectory = ftp.pwd()
 
         while 1:
-            #print("%s >> " % currentDirectory, end='')
-            print("\n****** Current Directory : %s *******\n" %currentDirectory)
+            # print("%s >> " % currentDirectory, end='')
+            print("\n****** Current Directory : %s *******\n" % currentDirectory)
             print("Enter a command to perform operation or type 'h' to see the menu >> ", end='')
             clientRequest = input().lower()
 
@@ -303,6 +312,10 @@ if __name__ == '__main__':
             elif clientRequest == "n" or clientRequest == "navigate":
                 navigate(ftp)
 
+            # Navigate
+            elif clientRequest == "k" or clientRequest == "chown":
+                change_owner(ftp)
+
             # Back 1 Directory
             elif clientRequest == "b" or clientRequest == "back":
                 print("Not tested")
@@ -317,8 +330,8 @@ if __name__ == '__main__':
                 ftp_list(ftp)
 
             # Open program with file
-            elif clientRequest == "o" or clientRequest == "open" or clientRequest == "text editor" or\
-                clientRequest == "open editor" or clientRequest == "open text editor" or\
+            elif clientRequest == "o" or clientRequest == "open" or clientRequest == "text editor" or \
+                    clientRequest == "open editor" or clientRequest == "open text editor" or \
                     clientRequest == "open text":
 
                 open_program()
