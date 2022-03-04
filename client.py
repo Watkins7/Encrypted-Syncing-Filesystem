@@ -186,9 +186,10 @@ def ftp_list(ftp):
         # ftp.retrlines('LIST')
         # ftp.retrlines('LIST *README*')
         all_objects = ftp.nlst()
-
+        print("\n\n-------Begin of List------\n")
         for obj in all_objects:
             print(obj)
+        print("\n-------End of List------\n\n")
 
     except Exception as E:
         print("Error: ", E)
@@ -222,25 +223,29 @@ def help(ftp):
 # write to SEDFS
 def write(ftp):
 
-    local_name = input("Local file to upload\n >> ")
+    local_name = input("Enter Local file path to upload\n >> ")
     try:
+        print("\n-------File uploading started------")
         file = open(local_name, 'rb')
     except Exception as E:
         print(E)
         return
 
     try:
-        ftp.storbinary('STOR ', local_name, file)  # send the file
+        ftp.storbinary('STOR '+ local_name, file)  # send the file
         file.close()
+        print("-------File has uploaded successfully------\n\n")
     except Exception as E:
         print(E)
 
 # read from sedfs
 def read(ftp):
 
-    sedfs_name = input("SEDFS file to download\n >> ")
+    sedfs_name = input("Enter SEDFS file path to download\n >> ")
     try:
-        ftp.retrbinary("RETR ",sedfs_name, print)
+        print("\n\n-------Begin------\n")
+        ftp.retrbinary("RETR " + sedfs_name, print)
+        print("\n-------EOF------\n\n")
     except Exception as E:
         print(E)
         return
@@ -267,7 +272,9 @@ if __name__ == '__main__':
         currentDirectory = ftp.pwd()
 
         while 1:
-            print("%s >> " % currentDirectory, end='')
+            #print("%s >> " % currentDirectory, end='')
+            print("\n****** Current Directory : %s *******\n" %currentDirectory)
+            print("Enter a command to perform operation or type 'h' to see the menu >> ", end='')
             clientRequest = input().lower()
 
             # Create
@@ -281,12 +288,10 @@ if __name__ == '__main__':
 
             # Write
             elif clientRequest == "write" or clientRequest == "w":
-                print("Not Tested")
                 write(ftp)
 
             # read
             elif clientRequest == "read" or clientRequest == "r":
-                print("Not Tested")
                 read(ftp)
 
             # change permissions
