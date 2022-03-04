@@ -175,6 +175,12 @@ def navigate(ftp):
     except Execption as e:
         print(e)
 
+def rename(ftp):
+    new_name = input("Enter new name\n >> ")
+    old_name = input("Enter old name\n >> ")
+    resp = ftp.rename(old_name, new_name)
+    print(resp)
+
 
 # list all current files and directories
 def ftp_list(ftp):
@@ -227,6 +233,7 @@ def help(ftp):
           "\t's' == Display Server Information\n",
           "\t'o' == Open Text Editor\n",
           "\t'k' == Change Owner\n",
+          "\t'u' == Change Name\n",
           "\t'h' == Help\n")
 
 
@@ -302,6 +309,10 @@ if __name__ == '__main__':
             # read
             elif clientRequest == "read" or clientRequest == "r":
                 read(ftp)
+
+            # read
+            elif clientRequest == "rename" or clientRequest == "u":
+                rename(ftp)
 
             # change permissions
             elif clientRequest == "permissions" or clientRequest == "p":
