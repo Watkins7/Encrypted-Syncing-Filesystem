@@ -1,11 +1,12 @@
 import os
 from fileinput import fileno
 
-from pyftpdlib.authorizers import DummyAuthorizer
+from pyftpdlib.authorizers import UnixAuthorizer
 from pyftpdlib.handlers import FTPHandler
 from pyftpdlib.servers import FTPServer
+from pyftpdlib.filesystems import UnixFilesystem
+
 import socket
-import csync
 
 # Used to display logging to stdout
 import logging.config
@@ -34,7 +35,6 @@ loggingHandler = logging.StreamHandler(stream=sys.stdout)
 serverLog.addHandler(loggingHandler)
 serverLog.setLevel(logging.DEBUG)
 
-
 known_servers = []
 listOfNo = ["no", "n", "NO", "N"]
 
@@ -50,10 +50,12 @@ class SEDFS_server(FTPServer):
 
 
 class SEDFS_handler(FTPHandler):
-    user = ""  # save global username
 
     # child handler init
     def __init__(self, conn, server, ioloop):
+        self.handler_user = None
+        self.handler_pass = None
+
         # Log handler event
         print(datetime.now().strftime("DATE: %Y:%m:%d\tTIME: %H:%M:%S\tEVENT: "), end="")
         serverLog.info("[+] SEDFS Handle Started")
@@ -64,64 +66,44 @@ class SEDFS_handler(FTPHandler):
         return
 
     # Polymorph of on_login
-    #def on_login(self, username):
-        #user = username
-        #self.on_login(username)
+    def on_login(self, username):
+        self.handler_user = self.authorizer.return_user()
+        self.handler_pass = self.authorizer.return_pass()
+        print(self.handler_user)
+        print(self.handler_pass)
+
+        FTPHandler.on_login(username)
 
 
-# Configuration function for loading users
-def load_users(authorizer):
+class SEDFS_authorizer(UnixAuthorizer):
 
-    print("Not Tested")
-    try:
-        file = open("userConfig.txt", mode='r')
-    except:
-        serverLog.info("[*] userConfig.txt, file not found")
-        return
+    def __init__(self, global_perm="elradfmwMT", allowed_users=None, rejected_users=None, require_valid_shell=True,
+                 anonymous_user=None, msg_login="Login successful.", msg_quit="Goodbye."):
+        self.user_is = None
+        self.pass_is = None
 
-    lines = file.readlines()
-    file.close()
+        UnixAuthorizer.__init__(self, global_perm="elradfmwMT",
+                                allowed_users=None,
+                                rejected_users=None,
+                                require_valid_shell=True,
+                                anonymous_user=None,
+                                msg_login="SEDFS Login successful!",
+                                msg_quit="Exiting SEDFS, Goodbye.")
 
-    for line in lines:
-        # remove whitespaces, delimiters, append to authorizedUsers
-        line = line.strip()
-        user = line.split(',')
+    def validate_authentication(self, username, password, handler):
+        self.user_is = username
+        self.pass_is = password
+        print(self.user_is)
+        print(self.pass_is)
 
-        # Create User Object and Append to "authorizedUsers"
-        try:
-            # USERNAME, PASSWORD, HOME, PERMISSIONS
-            authorizer.add_user(user[0], user[1], user[2], user[3])
-            serverLog.info("[+] New User added: %s" % user[0])
-        except Exception as E:
-            print(E)
+        UnixAuthorizer.validate_authentication(self, username, password, handler)
 
-    return
+    def return_user(self):
+        return self.user_is
 
+    def return_pass(self):
+        return self.pass_is
 
-def server_sync():
-
-    while 1:
-        print("Enter IP of server to sync\n >> ", end='')
-        serverIP = input().strip()
-        full_remote_path = input("Please enter the FULL REMOTE path of the directory\n >> ").strip()
-
-
-        current_directory = os.getcwd()
-        current_directory.replace("\\", "/")
-        current_directory = current_directory + "/SEDFS"
-        full_string = "csync " + current_directory + " sftp://csync@" + serverIP +":50001" + full_remote_path
-
-        print("Attempting csync...", full_string)
-
-        try:
-            os.system(full_string)
-            known_servers.append(serverIP)
-        except Exception as E:
-            print(E)
-
-        ans = input("Do you wish to continue?\n >> ")
-        if ans in listOfNo:
-            break
 
 def SEDFS_setup():
     # Get local address information
@@ -129,18 +111,19 @@ def SEDFS_setup():
     address = (server_IP, 50000)
 
     # Instantiate a dummy authorizer for managing 'virtual' users
-    authorizer = DummyAuthorizer()
+    authorizer = SEDFS_authorizer()
 
     # if base directory doesnt exist, make it
     if not os.path.exists("SEDFS"):
         os.mkdir("SEDFS")
 
     # LOAD username, password, home directory, permissions
-    authorizer.add_user('sudo', 'password', './SEDFS', perm='elradfmwMT')
-    load_users(authorizer)
+    authorizer.override_user(username='sara', homedir='./SEDFS')
+    # load_users(authorizer)
 
     # Instantiate FTP handler class
     handler = SEDFS_handler
+    handler.abstract_fs = UnixFilesystem
     handler.authorizer = authorizer
     handler.banner = " << Welcome to SEDFS (Simple Encrypted Distributed File System)"
 

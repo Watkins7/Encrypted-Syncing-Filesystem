@@ -1,3 +1,0 @@
-root,root_information.txt,root_information.txt
-bob,bob.txt,bobs home/bob.txt
-alice,alice.txt,bobs home/alice home/alice.txt

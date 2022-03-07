@@ -23,6 +23,10 @@ def connect_to_server():
     global clientConnection     # Global server IPS
     new_ftp = FTP()             # return object
 
+
+    os.mkdir("test")
+    os.chmod("test", 0o222)
+
     # find a server connection
     while 1:
         print("\nInput SEDFS Server IPv4 Address ('quit' to exit)\n >> ", end='')
