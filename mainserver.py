@@ -1,7 +1,7 @@
-from socket import socket
+import socket
 import socketserver
 
-HOST, PORT = "10.211.55.6", 60000
+HOST, PORT = "", 60000
 
 serverList = []
 
@@ -30,6 +30,7 @@ class UserHandler(socketserver.BaseRequestHandler):
 
 
 if __name__ == "__main__":
-    with socketserver.TCPServer((HOST, PORT), UserHandler) as server:
+    HOST = socket.gethostbyname(socket.gethostname())
+    with socketserver.TCPServer((HOST, PORT), UserHandler) as server:  
         print("users server started on ", HOST, "-", PORT)
         server.serve_forever()
