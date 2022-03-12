@@ -172,7 +172,7 @@ def navigate(ftp):
         ftp.cwd(new_path)
         currentDirectory = new_path
 
-    except Execption as e:
+    except Exception as e:
         print(e)
 
 def rename(ftp):
@@ -203,19 +203,19 @@ def change_permissions(ftp):
     filename = input("Input filename\n >> ")
     permissions = input("Input new permissions\n >> ").strip()
     try:
-        ftp.sendcmd("SITE CHMOD" + permissions + " " + filename)
+        ftp.sendcmd("SITE CHMOD " + permissions + " " + filename)
     except Exception as E:
         print(E)
 
-
+"""
 def change_owner(ftp):
     filename = input("Input filename\n >> ")
     owner = input("Input new owner\n >> ").strip()
     try:
-        ftp.sendcmd("SITE CHOWN" + owner + " " + filename)
+        ftp.sendcmd("SITE CHOWN " + owner + " " + filename)
     except Exception as E:
         print(E)
-
+"""
 
 # Display Help Menu
 def help(ftp):
