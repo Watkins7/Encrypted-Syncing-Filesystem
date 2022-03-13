@@ -75,14 +75,12 @@ class SEDFS_handler(FTPHandler):
     def __init__(self, conn, server, ioloop):
         self.handler_user = None
         self.handler_pass = None
-        self.current_path = "/"
         # self.virtual_filesystem = AbstractedFS("/SEDFS", self)
 
         # Log handler event
         ip = str(conn.getpeername())
 
-        print(datetime.now().strftime("DATE: %Y:%m:%d /// TIME: %H:%M:%S /// EVENT: "), end="")
-        log_event = "[+] SEDFS Handle Started at: " + ip
+        log_event = "[+] TCP Connection Detected: " + ip
         serverLog.info(log_event)
 
         # parent handler init
@@ -91,17 +89,17 @@ class SEDFS_handler(FTPHandler):
         self.proto_cmds.update(
             {'SITE SIDEMKD': dict(perm='m', auth=True, arg=True, path=True,
                                   help='Side channel for make dir on other servers'),
-             'SITE SIDEDELE': dict(perm='d', auth=True, arg=True,
+             'SITE SIDEDELE': dict(perm='d', auth=True, arg=True, path=True,
                                    help='Side channel for delete file on other server'),
-             'SITE SIDERNFR': dict(perm='f', auth=True, arg=True,
+             'SITE SIDERNFR': dict(perm='f', auth=True, arg=True, path=True,
                                    help='One/two side channel for rename'),
-             'SITE SIDERNTO': dict(perm=None, auth=True, arg=True,
+             'SITE SIDERNTO': dict(perm=None, auth=True, arg=True, path=True,
                                    help='two/two side channel for rename'),
              'SITE SIDECHMOD': dict(perm='M', auth=True, arg=True,
                                     help='Side channel for permissions'),
-             'SITE SIDESTOR': dict(perm='w', auth=True, arg=True,
+             'SITE SIDESTOR': dict(perm='w', auth=True, arg=True, path=True,
                                    help='Side channel for storing files'),
-             'SITE SIDERMD': dict(perm='d', auth=True, arg=True,
+             'SITE SIDERMD': dict(perm='d', auth=True, arg=True, path=True,
                                   help='Side channel for remove directory')}
         )
 
@@ -111,16 +109,20 @@ class SEDFS_handler(FTPHandler):
     def on_login(self, username):
         self.handler_user = self.authorizer.return_user()
         self.handler_pass = self.authorizer.return_pass()
-        print(self.handler_user)
-        print(self.handler_pass)
+        #print(self.handler_user)
+        #print(self.handler_pass)
 
+        """
         try:
             print(self.fs.cwd)
         except Exception as E:
             print(E)
+        """
 
         super().on_login(username)
 
+
+    """
     def on_file_received(self, file):
 
         try:
@@ -129,51 +131,61 @@ class SEDFS_handler(FTPHandler):
             print(E)
 
         super().on_file_received(file)
+    """
 
-    def ftp_CWD(self, path):
-
-        super().ftp_CWD(path)
-
-        try:
-            self.current_path = self.fs.cwd
-        except Exception as E:
-            print(E)
 
     ####################################################################################
     # Make Directory on Server and ALL other server
     def ftp_MKD(self, path):
 
         new_path = self.fs.fs2ftp(path)
-        current_path = self.fs.cwd
+
+        #current_path = self.fs.cwd
         # current_path = self.fs.fs2ftp(current_path)
 
-        print("Testing multi MKD", new_path)
-        print("Current path is ", current_path)
+        #print("Testing multi MKD", new_path)
+        #print("Current path is ", current_path)
 
         # Make directory in all other servers
         for i in known_servers:
+
             new_FTP = FTP()
-            new_FTP.connect(i, 50000)
-            new_FTP.login(self.handler_user, self.handler_pass)
+
+            try:
+                new_FTP.connect(i, 50000)
+                new_FTP.login(self.handler_user, self.handler_pass)
+            except Exception as E:
+                print(E)
+
             try:
                 new_FTP.cwd(self.fs.cwd)
             except Exception as E:
                 print(E)
+
             try:
                 new_FTP.sendcmd("SITE SIDEMKD " + new_path)
             except Exception as E:
                 print(E)
-            new_FTP.close()
 
+            try:
+                new_FTP.close()
+            except Exception as E:
+                print(E)
+
+        # Preform parent function
         super().ftp_MKD(path)
 
     # Sidechannel on making directory only
     def ftp_SITE_SIDEMKD(self, path):
+
         actual_path = self.fs.fs2ftp(path)
         actual_path = self.fs.ftp2fs(actual_path)
-        print(actual_path)
+
+        log_event = "[+] Remote MKD: " + self.handler_user
+        serverLog.info(log_event)
 
         super().ftp_MKD(actual_path)
+
 
     ####################################################################################
     # Renaming on Server and ALL other Server
@@ -181,17 +193,35 @@ class SEDFS_handler(FTPHandler):
 
         new_path = self.fs.fs2ftp(path)
 
-        print("Testing multi RNFR", new_path)
+        #print("Testing multi RNFR", new_path)
 
         # Make directory in all other servers
         for i in known_servers:
-            new_FTP = FTP()
-            new_FTP.connect(i, 50000)
-            new_FTP.login(self.handler_user, self.handler_pass)
-            new_FTP.cwd(self.current_path)
-            new_FTP.sendcmd("SITE SIDERNFR " + new_path)
-            new_FTP.close()
 
+            new_FTP = FTP()
+
+            try:
+                new_FTP.connect(i, 50000)
+                new_FTP.login(self.handler_user, self.handler_pass)
+            except Exception as E:
+                print(E)
+
+            try:
+                new_FTP.cwd(self.fs.cwd)
+            except Exception as E:
+                print(E)
+
+            try:
+                new_FTP.sendcmd("SITE SIDERNFR " + new_path)
+            except Exception as E:
+                print(E)
+
+            try:
+                new_FTP.close()
+            except Exception as E:
+                print(E)
+
+        # Preform parents function
         super().ftp_RNFR(path)
 
     def ftp_RNTO(self, path):
@@ -203,40 +233,95 @@ class SEDFS_handler(FTPHandler):
         # Make directory in all other servers
         for i in known_servers:
             new_FTP = FTP()
-            new_FTP.connect(i, 50000)
-            new_FTP.login(self.handler_user, self.handler_pass)
-            new_FTP.cwd(self.current_path)
-            new_FTP.sendcmd("SITE SIDERNTO " + new_path)
-            new_FTP.close()
 
+            try:
+                new_FTP.connect(i, 50000)
+                new_FTP.login(self.handler_user, self.handler_pass)
+            except Exception as E:
+                print(E)
+
+            try:
+                new_FTP.cwd(self.fs.cwd)
+            except Exception as E:
+                print(E)
+
+            try:
+                new_FTP.sendcmd("SITE SIDERNTO " + new_path)
+            except Exception as E:
+                print(E)
+            try:
+                new_FTP.close()
+            except Exception as E:
+                print(E)
+
+        # Prefrom parents function
         super().ftp_RNTO(path)
 
     # Sidechannel on renaming only
     def ftp_SITE_SIDERNFR(self, path):
-        super().ftp_RNFR(path)
+
+        actual_path = self.fs.fs2ftp(path)
+        actual_path = self.fs.ftp2fs(actual_path)
+
+        log_event = "[+] Remote RNFR: " + self.handler_user
+        serverLog.info(log_event)
+
+        super().ftp_RNFR(actual_path)
 
     def ftp_SITE_SIDERNTO(self, path):
-        super().ftp_RNTO(path)
+
+        actual_path = self.fs.fs2ftp(path)
+        actual_path = self.fs.ftp2fs(actual_path)
+
+        log_event = "[+] Remote RNTO: " + self.handler_user
+        serverLog.info(log_event)
+
+        super().ftp_RNTO(actual_path)
 
     ####################################################################################
     # Make File on server
     def ftp_STOR(self, file, mode='w'):
 
-        print("Testing multi STOR")
+        new_path = self.fs.fs2ftp(file)
+        #print("Testing multi STOR")
+
+        # Preform Parent Function
+        super().ftp_STOR(file, mode)
 
         # Make directory in all other servers
         for i in known_servers:
-            new_FTP = FTP()
-            new_FTP.connect(i, 50000)
-            new_FTP.login(self.handler_user, self.handler_pass)
-            new_FTP.cwd(self.current_path)
-            new_FTP.sendcmd("SITE SIDESTOR " + file)
-            new_FTP.close()
 
-        super().ftp_STOR(file, mode)
+            new_FTP = FTP()
+
+            try:
+                new_FTP.connect(i, 50000)
+                new_FTP.login(self.handler_user, self.handler_pass)
+            except Exception as E:
+                print(E)
+
+            try:
+                new_FTP.cwd(self.fs.cwd)
+            except Exception as E:
+                print(E)
+
+            try:
+                new_FTP.sendcmd("SITE SIDESTOR " + new_path)
+            except Exception as E:
+                print(E)
+
+            try:
+                new_FTP.close()
+            except Exception as E:
+                print(E)
+
+
 
     # Sidechannel making file on other servers
-    def ftp_SIDESTOR(self, file, mode='w'):
+    def ftp_SITE_SIDESTOR(self, file, mode='w'):
+
+        log_event = "[+] Remote STOR: " + self.handler_user
+        serverLog.info(log_event)
+
         super().ftp_STOR(file, mode)
 
     ####################################################################################
@@ -245,22 +330,47 @@ class SEDFS_handler(FTPHandler):
 
         new_path = self.fs.fs2ftp(path)
 
-        print("Testing multi DELE", new_path)
+        #print("Testing multi DELE", new_path)
 
         # Make directory in all other servers
         for i in known_servers:
-            new_FTP = FTP()
-            new_FTP.connect(i, 50000)
-            new_FTP.login(self.handler_user, self.handler_pass)
-            new_FTP.cwd(self.current_path)
-            new_FTP.sendcmd("SITE SIDEDELE " + new_path)
-            new_FTP.close()
 
+            new_FTP = FTP()
+
+            try:
+                new_FTP.connect(i, 50000)
+                new_FTP.login(self.handler_user, self.handler_pass)
+            except Exception as E:
+                print(E)
+
+            try:
+                new_FTP.cwd(self.fs.cwd)
+            except Exception as E:
+                print(E)
+
+            try:
+                new_FTP.sendcmd("SITE SIDEDELE " + new_path)
+            except Exception as E:
+                print(E)
+
+            try:
+                new_FTP.close()
+            except Exception as E:
+                print(E)
+
+        # Preform Parent Function
         super().ftp_DELE(path)
 
     # Sidechannel deleting file on other servers
-    def ftp_SIDEDELE(self, path):
-        super().ftp_DELE(path)
+    def ftp_SITE_SIDEDELE(self, path):
+
+        actual_path = self.fs.fs2ftp(path)
+        actual_path = self.fs.ftp2fs(actual_path)
+
+        log_event = "[+] Remote DELE: " + self.handler_user
+        serverLog.info(log_event)
+
+        super().ftp_DELE(actual_path)
 
     ####################################################################################
     # Delete directory on server
@@ -272,18 +382,43 @@ class SEDFS_handler(FTPHandler):
 
         # Make directory in all other servers
         for i in known_servers:
-            new_FTP = FTP()
-            new_FTP.connect(i, 50000)
-            new_FTP.login(self.handler_user, self.handler_pass)
-            new_FTP.cwd(self.current_path)
-            new_FTP.sendcmd("SITE SIDERMD " + new_path)
-            new_FTP.close()
 
+            new_FTP = FTP()
+
+            try:
+                new_FTP.connect(i, 50000)
+                new_FTP.login(self.handler_user, self.handler_pass)
+            except Exception as E:
+                print(E)
+
+            try:
+                new_FTP.cwd(self.fs.cwd)
+            except Exception as E:
+                print(E)
+
+            try:
+                new_FTP.sendcmd("SITE SIDERMD " + new_path)
+            except Exception as E:
+                print(E)
+
+            try:
+                new_FTP.close()
+            except Exception as E:
+                print(E)
+
+        # Parent Function
         super().ftp_RMD(path)
 
     # Sidechannel delete other files on server
-    def ftp_SIDERMD(self, path):
-        super().ftp_RMD(path)
+    def ftp_SITE_SIDERMD(self, path):
+
+        actual_path = self.fs.fs2ftp(path)
+        actual_path = self.fs.ftp2fs(actual_path)
+
+        log_event = "[+] Remote RMD: " + self.handler_user
+        serverLog.info(log_event)
+
+        super().ftp_RMD(actual_path)
 
     ####################################################################################
     # Change permissions on server
@@ -291,21 +426,55 @@ class SEDFS_handler(FTPHandler):
 
         new_path = self.fs.fs2ftp(path)
 
-        print("Testing multi CHMOD", new_path, mode)
+        print("Testing multi CHMOD", new_path)
+        print("Mode is ", mode)
 
         # Make directory in all other servers
         for i in known_servers:
             new_FTP = FTP()
-            new_FTP.connect(i, 50000)
-            new_FTP.login(self.handler_user, self.handler_pass)
-            new_FTP.cwd(self.current_path)
-            new_FTP.sendcmd("SITE SIDECHMOD " + mode + " " + new_path)
-            new_FTP.close()
 
+            try:
+                new_FTP.connect(i, 50000)
+                new_FTP.login(self.handler_user, self.handler_pass)
+            except Exception as E:
+                print(E)
+
+            try:
+                new_FTP.cwd(self.fs.cwd)
+            except Exception as E:
+                print(E)
+
+            try:
+                new_cmd = new_path + " " + mode
+                print(new_cmd)
+                new_FTP.sendcmd("SITE SIDECHMOD " + new_cmd)
+            except Exception as E:
+                print(E)
+
+            try:
+                new_FTP.close()
+            except Exception as E:
+                print(E)
+
+        #print("You actually need", path)
+        # Preform Parent Function
         super().ftp_SITE_CHMOD(path, mode)
 
     # Sidechannel changing permissions on other servers
-    def ftp_SITE_SIDECHMOD(self, path, mode):
+    def ftp_SITE_SIDECHMOD(self, modeandpath):
+
+        print(modeandpath)
+
+        mode = modeandpath.split()[-1]
+        #path = self.fs.fs2ftp(modeandpath[:-len(mode)])
+        path = (modeandpath[:-(len(mode)+1)])
+
+        print("side mode is ", mode)
+        print("Side path is ", path)
+
+        log_event = "[+] Remote CHMOD: " + self.handler_user
+        serverLog.info(log_event)
+
         super().ftp_SITE_CHMOD(path, mode)
 
 
@@ -441,7 +610,6 @@ def SEDFS_setup():
     try:
     #    variable = AbstractedFS("/SEDFS", handler)
         print(handler.abstract_fs.cwd)
-
     except Exception as E:
         print(E)
     """
