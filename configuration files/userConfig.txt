@@ -1,5 +1,2 @@
-root,********,./SEDFS,elradfmwMT
-bob,1234,./SEDFS,elradfmwMT
-alice,password,./SEDFS,elradfmwMT
-tompskin,cmsc626,./SEDFS,elradfmwMT
-user,12345,./SEDFS,elradfmwMT
+alice
+sara
