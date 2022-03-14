@@ -352,7 +352,6 @@ if __name__ == '__main__':
 
             # change permissions
             elif clientRequest == "permissions" or clientRequest == "p" or clientRequest == "chmod":
-                print("Not tested")
                 change_permissions(ftp)
 
             # Navigate
@@ -365,7 +364,6 @@ if __name__ == '__main__':
 
             # Back 1 Directory
             elif clientRequest == "b" or clientRequest == "back":
-                print("Not tested")
                 go_back(ftp)
 
             # Delete file
