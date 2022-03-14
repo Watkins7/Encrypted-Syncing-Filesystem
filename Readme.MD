@@ -26,7 +26,7 @@ Defaults:
 
   While the server displays all possible IPs on the system, the default is 'eth0'
     (If the Linux system uses a different network interface, you will need to HARDCODE THE CHANGE from 'eth0' to whatever interface you want)
-  
+    
   pyftplib defaults can be adjusted/modifed in the code, such as increasing the number of connections from 10,000 to 'x'
   
   Please see online pyftplib documentation on how to adjust
