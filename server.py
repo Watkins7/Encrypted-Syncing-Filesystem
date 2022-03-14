@@ -22,8 +22,9 @@ from os.path import exists
 # Used to display logging to stdout
 import logging.config
 
-# Date and time
-from datetime import datetime
+
+# Global Variable
+former_name = None
 
 #######################################
 # Exit if user is not sudo
@@ -191,10 +192,14 @@ class SEDFS_handler(FTPHandler):
     # Renaming on Server and ALL other Server
     def ftp_RNFR(self, path):
 
-        new_path = self.fs.fs2ftp(path)
+        global former_name
+        former_name = self.fs.fs2ftp(path)
+        print("Orginal path is", former_name)
+
 
         #print("Testing multi RNFR", new_path)
 
+        """
         # Make directory in all other servers
         for i in known_servers:
 
@@ -220,6 +225,7 @@ class SEDFS_handler(FTPHandler):
                 new_FTP.close()
             except Exception as E:
                 print(E)
+        """
 
         # Preform parents function
         super().ftp_RNFR(path)
@@ -228,7 +234,7 @@ class SEDFS_handler(FTPHandler):
 
         new_path = self.fs.fs2ftp(path)
 
-        print("Testing multi RNTO", path)
+        print("Testing multi RNTO", new_path)
 
         # Make directory in all other servers
         for i in known_servers:
@@ -240,13 +246,14 @@ class SEDFS_handler(FTPHandler):
             except Exception as E:
                 print(E)
 
-            try:
-                new_FTP.cwd(self.fs.cwd)
-            except Exception as E:
-                print(E)
+            #try:
+                #new_FTP.cwd(self.fs.cwd)
+            #except Exception as E:
+                #print(E)
 
             try:
-                new_FTP.sendcmd("SITE SIDERNTO " + new_path)
+                new_FTP.sendcmd("SITE SIDERNFR " + former_name[1:])
+                new_FTP.sendcmd("SITE SIDERNTO " + new_path[1:])
             except Exception as E:
                 print(E)
             try:
@@ -592,8 +599,8 @@ def SEDFS_setup():
     multiUserLoad()
     for i in range(len(known_users)):
         try:
-            home = os.path.abspath("SEDFS")
-            authorizer.override_user(known_users[i], homedir=home)
+            #home = os.path.abspath("SEDFS")
+            authorizer.override_user(known_users[i], homedir="SEDFS")
         except Exception as E:
             print(E)
 
