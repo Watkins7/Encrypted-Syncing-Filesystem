@@ -36,6 +36,9 @@ serverLog.setLevel(logging.DEBUG)
 known_servers = []
 listOfNo = ["no", "n", "NO", "N"]
 
+# MainServer details
+MAINSERVERHOST, MAINSEREVERPORT = "10.211.55.6", 60000
+
 
 class SEDFS_server(FTPServer):
 
@@ -69,6 +72,16 @@ class SEDFS_handler(FTPHandler):
 
 # Configuration function for loading users
 def load_users(authorizer):
+
+    # Create a socket (SOCK_STREAM means a TCP socket)
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        # Connect to server and send data
+        sock.connect((MAINSERVERHOST, MAINSEREVERPORT))
+        sock.sendall(bytes("userdata"+ "\n", "utf-8"))
+
+        # Receive users data from the server and shut down
+        received = str(sock.recv(1024), "utf-8")
+    lists = received.split(";")
     try:
         file = open("configuration files/userConfig.txt", mode='r')
     except:
@@ -85,7 +98,7 @@ def load_users(authorizer):
     except Exception as E:
         print(E)
 
-    for line in lines:
+    for line in lists:
 
         # remove whitespaces, delimiters, append to authorizedUsers
         line = line.strip()
@@ -163,6 +176,12 @@ def SEDFS_setup():
     # set a limit for connections
     server.max_cons = 100000
     server.max_cons_per_ip = 5
+
+    # sending this server details to main server
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        # Connect to server and send data
+        sock.connect((MAINSERVERHOST, MAINSEREVERPORT))
+        sock.sendall(bytes("serverip:"+server_IP+"\n", "utf-8"))
 
     # start ftp server
     server.serve_forever()
