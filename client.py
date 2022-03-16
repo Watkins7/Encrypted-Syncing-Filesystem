@@ -203,10 +203,11 @@ def rename(ftp):
 
     try:
         resp = ftp.rename(old_name, new_name)
+        print(resp)
     except Exception as E:
         print(E)
 
-    print(resp)
+    
 
 
 # list all current files and directories
@@ -230,17 +231,6 @@ def change_permissions(ftp):
         ftp.sendcmd("SITE CHMOD " + permissions + " " + filename)
     except Exception as E:
         print(E)
-
-
-"""
-def change_owner(ftp):
-    filename = input("Input filename\n >> ")
-    owner = input("Input new owner\n >> ").strip()
-    try:
-        ftp.sendcmd("SITE CHOWN " + owner + " " + filename)
-    except Exception as E:
-        print(E)
-"""
 
 
 # Display Help Menu
@@ -392,6 +382,7 @@ if __name__ == '__main__':
             elif clientRequest in quit:
                 print(" << Quiting SEDFS...Goodbye")
                 ftp.quit()
+                break
 
             # Help
             elif clientRequest == "help" or clientRequest == "h":
