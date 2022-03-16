@@ -22,9 +22,12 @@ from os.path import exists
 # Used to display logging to stdout
 import logging.config
 
+# Date and time
+from datetime import datetime
 
-# Global Variable
-former_name = None
+#Checks username
+from os import stat
+from pwd import getpwuid
 
 #######################################
 # Exit if user is not sudo
@@ -38,11 +41,7 @@ if os.getuid() != 0:
 #######################################
 # Set logging configuration
 
-"""
-logging.basicConfig(filename='SEDFS_EVENT_LOG.log', level=logging.DEBUG, filemode='w',
-                    format='%(asctime)s\tLogger: %(name)s\tLevel: %(levelname)s\tEvent: %(message)s',
-                    datefmt='%Y:%m:%d %H:%M:%S')
-"""
+
 logging.basicConfig(filename='SEDFS_EVENT_LOG.log', level=logging.DEBUG, filemode='w',
                     format='%(asctime)s\tLogger: %(name)s\tEvent: %(message)s',
                     datefmt='%d/%m: %H/%M/%S')
@@ -188,53 +187,35 @@ class SEDFS_handler(FTPHandler):
         super().ftp_MKD(actual_path)
 
 
-    ####################################################################################
+        ####################################################################################
     # Renaming on Server and ALL other Server
     def ftp_RNFR(self, path):
 
         global former_name
         former_name = self.fs.fs2ftp(path)
-        print("Orginal path is", former_name)
+        #print("Orginal path is", former_name)
+        
+        if os.path.exists(path) == False:
+            self.respond('550 File does not exists')
+            return   
+           
+           
+
+        #Preform Parent Function
+        file_owner = getpwuid(stat(path).st_uid).pw_name
+        #print(file_owner)
+        if file_owner == self.handler_user:
+            super().ftp_RNFR(path)
+        else:
+            self.respond('550 Cannot rename, only owner can rename')
 
 
-        #print("Testing multi RNFR", new_path)
-
-        """
-        # Make directory in all other servers
-        for i in known_servers:
-
-            new_FTP = FTP()
-
-            try:
-                new_FTP.connect(i, 50000)
-                new_FTP.login(self.handler_user, self.handler_pass)
-            except Exception as E:
-                print(E)
-
-            try:
-                new_FTP.cwd(self.fs.cwd)
-            except Exception as E:
-                print(E)
-
-            try:
-                new_FTP.sendcmd("SITE SIDERNFR " + new_path)
-            except Exception as E:
-                print(E)
-
-            try:
-                new_FTP.close()
-            except Exception as E:
-                print(E)
-        """
-
-        # Preform parents function
-        super().ftp_RNFR(path)
 
     def ftp_RNTO(self, path):
 
         new_path = self.fs.fs2ftp(path)
 
-        print("Testing multi RNTO", new_path)
+        #print("Testing multi RNTO", new_path)
 
         # Make directory in all other servers
         for i in known_servers:
@@ -261,8 +242,9 @@ class SEDFS_handler(FTPHandler):
             except Exception as E:
                 print(E)
 
-        # Prefrom parents function
+
         super().ftp_RNTO(path)
+
 
     # Sidechannel on renaming only
     def ftp_SITE_SIDERNFR(self, path):
@@ -273,7 +255,18 @@ class SEDFS_handler(FTPHandler):
         log_event = "[+] Remote RNFR: " + self.handler_user
         serverLog.info(log_event)
 
-        super().ftp_RNFR(actual_path)
+        if os.path.exists(path) == False:
+            self.respond('550 File does not exists')
+            return
+               
+        #Preform Parent Function
+        file_owner = getpwuid(stat(path).st_uid).pw_name
+        #print(file_owner)
+        if file_owner == self.handler_user:
+            super().ftp_RNFR(actual_path)
+        else:
+            self.respond('550 Cannot rename, only owner can rename')
+
 
     def ftp_SITE_SIDERNTO(self, path):
 
@@ -284,6 +277,7 @@ class SEDFS_handler(FTPHandler):
         serverLog.info(log_event)
 
         super().ftp_RNTO(actual_path)
+
 
     ####################################################################################
     # Make File on server
@@ -365,8 +359,13 @@ class SEDFS_handler(FTPHandler):
             except Exception as E:
                 print(E)
 
-        # Preform Parent Function
-        super().ftp_DELE(path)
+        file_owner = getpwuid(stat(path).st_uid).pw_name
+        #print(file_owner)
+        if file_owner == self.handler_user:
+            
+            super().ftp_DELE(path)
+        else:
+            self.respond('550 not authorized user')
 
     # Sidechannel deleting file on other servers
     def ftp_SITE_SIDEDELE(self, path):
@@ -377,7 +376,13 @@ class SEDFS_handler(FTPHandler):
         log_event = "[+] Remote DELE: " + self.handler_user
         serverLog.info(log_event)
 
-        super().ftp_DELE(actual_path)
+        file_owner = getpwuid(stat(path).st_uid).pw_name
+        #print(file_owner)
+        if file_owner == self.handler_user:
+            
+            super().ftp_DELE(path)
+        else:
+            self.respond('550 not authorized user')
 
     ####################################################################################
     # Delete directory on server
@@ -385,7 +390,7 @@ class SEDFS_handler(FTPHandler):
 
         new_path = self.fs.fs2ftp(path)
 
-        print("Testing multi RNFR", new_path)
+        #print("Testing multi RNFR", new_path)
 
         # Make directory in all other servers
         for i in known_servers:
@@ -413,8 +418,15 @@ class SEDFS_handler(FTPHandler):
             except Exception as E:
                 print(E)
 
-        # Parent Function
-        super().ftp_RMD(path)
+        file_owner = getpwuid(stat(path).st_uid).pw_name
+        #print(file_owner)
+        if file_owner == self.handler_user:
+            
+            super().ftp_RMD(path)
+        else:
+            self.respond('550 not authorized user')
+
+
 
     # Sidechannel delete other files on server
     def ftp_SITE_SIDERMD(self, path):
@@ -425,7 +437,13 @@ class SEDFS_handler(FTPHandler):
         log_event = "[+] Remote RMD: " + self.handler_user
         serverLog.info(log_event)
 
-        super().ftp_RMD(actual_path)
+        file_owner = getpwuid(stat(path).st_uid).pw_name
+        #print(file_owner)
+        if file_owner == self.handler_user:
+            
+            super().ftp_RMD(path)
+        else:
+            self.respond('550 not authorized user')
 
     ####################################################################################
     # Change permissions on server
@@ -433,8 +451,8 @@ class SEDFS_handler(FTPHandler):
 
         new_path = self.fs.fs2ftp(path)
 
-        print("Testing multi CHMOD", new_path)
-        print("Mode is ", mode)
+        #print("Testing multi CHMOD", new_path)
+        #print("Mode is ", mode)
 
         # Make directory in all other servers
         for i in known_servers:
@@ -476,8 +494,8 @@ class SEDFS_handler(FTPHandler):
         #path = self.fs.fs2ftp(modeandpath[:-len(mode)])
         path = (modeandpath[:-(len(mode)+1)])
 
-        print("side mode is ", mode)
-        print("Side path is ", path)
+        #print("side mode is ", mode)
+        #print("Side path is ", path)
 
         log_event = "[+] Remote CHMOD: " + self.handler_user
         serverLog.info(log_event)
@@ -503,11 +521,10 @@ class SEDFS_authorizer(UnixAuthorizer):
     def validate_authentication(self, username, password, handler):
         self.user_is = username
         self.pass_is = password
-        # print(self.user_is)
-        # print(self.pass_is)
+
 
         UnixAuthorizer.validate_authentication(self, username, password, handler)
-
+	
     def return_user(self):
         return self.user_is
 
@@ -599,8 +616,8 @@ def SEDFS_setup():
     multiUserLoad()
     for i in range(len(known_users)):
         try:
-            #home = os.path.abspath("SEDFS")
-            authorizer.override_user(known_users[i], homedir="SEDFS")
+            home = os.path.abspath("SEDFS")
+            authorizer.override_user(known_users[i], homedir=home)
         except Exception as E:
             print(E)
 
