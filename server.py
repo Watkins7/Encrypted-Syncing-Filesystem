@@ -39,6 +39,8 @@ listOfNo = ["no", "n", "NO", "N"]
 # MainServer details
 MAINSERVERHOST, MAINSEREVERPORT = "10.211.55.6", 60000
 
+MAINSERVERHOST = input("ENTER MAIN SERVER IP ADDRESS:\n >>")
+
 
 class SEDFS_server(FTPServer):
 
