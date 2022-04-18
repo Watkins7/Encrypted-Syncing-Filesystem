@@ -22,6 +22,9 @@ currentDirectory = ""
 # MainServer details
 MAINSERVERHOST, MAINSERVERPORT = "10.211.55.6", 60000
 
+MAINSERVERHOST = input("ENTER MAIN SERVER IP ADDRESS:\n >>")
+
+
 
 # Prompts user for a server IP
 # If successful, prompts user for credentials
