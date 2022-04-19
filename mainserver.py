@@ -1,7 +1,8 @@
 from socket import socket
 import socketserver
+import json
 
-HOST, PORT = "10.211.55.6", 60000
+HOST, PORT = "192.168.0.25", 60000
 
 serverList = []
 global lockedFileslist
@@ -44,7 +45,31 @@ class UserHandler(socketserver.BaseRequestHandler):
                 lockedFileslist.remove(filename)
             print(self.data, "has been unlocked")
             print("current locked files are: ", lockedFileslist)
-
+        if "getPermissions" in format(self.data):   
+            data = json.loads(self.data)
+            file = open("configuration files/permissions.json")
+            filedata = json.load(file)
+            if data['filename'] in filedata:
+                result = filedata[data['filename']]
+            print(result)
+            jsData = json.dumps(result)
+            self.request.sendall(bytes(jsData, "utf-8"))
+        if "insertPermissions" in format(self.data): 
+            print(json.loads(self.data))
+            data = json.loads(self.data)
+            file = open("configuration files/permissions.json")
+            filedata = json.load(file)
+            if data['fileDetails']['name'] in filedata:
+                print("temp")
+                print(filedata[data['fileDetails']['name']]['users'])
+                temp = filedata[data['fileDetails']['name']]['users']
+                temp[data['fileDetails']['users']['name']] = data['fileDetails']['users']['per']
+                filedata[data['fileDetails']['name']] = {"name" : data['fileDetails']['name'], "owner": filedata[data['fileDetails']['name']]['owner'], "users":  temp}
+            else:    
+                filedata[data['fileDetails']['name']] =  {"name" : data['fileDetails']['name'], "owner": data['fileDetails']['owner'], "users":  {}}
+            with open("configuration files/permissions.json", "w") as file1:
+                json.dump(filedata, file1)
+            self.request.sendall(bytes(str("200"), "utf-8"))
 
 if __name__ == "__main__":
     with socketserver.TCPServer((HOST, PORT), UserHandler) as server:

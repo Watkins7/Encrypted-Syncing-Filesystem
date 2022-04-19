@@ -1,0 +1,23 @@
+{
+  "asda": "asdsad",
+  "karthik.txt": {
+    "name": "karthik.txt",
+    "owner": "karthik Dattu",
+    "users": []
+  },
+  "karthikd.txt": {
+    "name": "karthikd.txt",
+    "owner": "karthik Dattu",
+    "users": ["lakshman", "krishna"]
+  },
+  "karthikdattu.txt": {
+    "name": "karthikdattu.txt",
+    "owner": "karthik Dattu",
+    "users": []
+  },
+  "test.txt": {
+    "name": "test.txt",
+    "owner": "karthik Dattu",
+    "users": { "krishna": "R", "lakshman": "RW", "sandeep": "RW" }
+  }
+}
