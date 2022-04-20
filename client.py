@@ -8,10 +8,10 @@ from pathlib import Path
 import socket
 from Crypto.Cipher import AES
 
+# gLOBAL vARIABLES
 ServerPort = 50000  # server port
 clientConnection = None
-
-serverIps = ["10.211.55.5","10.211.55.6"]
+serverIps = []
 quit = ["QUIT", "Q", "quit", "q", "exit", "EXIT", "E", "e"]
 listOfYes = ["yes", "y", "YES", "Y"]
 listOfNo = ["no", "n", "NO", "N"]
@@ -34,9 +34,8 @@ def connect_to_server():
     global clientConnection  # Global server IPS
     new_ftp = FTP()  # return object
     childServersList = [] # array to maintain child servers
-    serverIP = ""
 
-    # find a server connection
+    # find an intial server connection
     while 1:
         print("\nInput SEDFS Server IPv4 Address ('quit' to exit)\n >> ", end='')
         serverIP = input().strip()
@@ -67,6 +66,8 @@ def connect_to_server():
             print(" << Login Success!")
             new_ftp.set_pasv(True)  # Set to passive mode if time out
             #Fetching active servers details from main server
+
+            #
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
                 sock.connect((MAINSERVERHOST, MAINSERVERPORT))
                 ip = socket.gethostbyname(socket.gethostname())
@@ -75,6 +76,8 @@ def connect_to_server():
             activeservers = received.split(";")
             serverIps = activeservers
             print("\nCurrent active servers :",activeservers,"\n")
+
+            #
             for ips in serverIps:
                 if ips.strip() != serverIP.strip():
                     con = FTP()
@@ -82,6 +85,8 @@ def connect_to_server():
                     con.login(username, password)
                     childServersList.append(con)
             break
+
+        #
         except Exception as e:
             print(e)
 
@@ -111,19 +116,22 @@ def create_blank_file_or_directory(childServ):
         client_file = input()
         command = 'STOR ' + client_file
 
+        # create file for all servers
         try:
             response = ftp.storbinary(command, io.BytesIO(b''))
-            #print(" << ", response)
-            print("------File created in parent server-----------\n")
-            print("------Creating File in child servers----------\n")
+            print(" << ", response)
+
             for ser in childSer:
                 ser.storbinary(command, io.BytesIO(b''))
+
+            # ?????????????????
             createPermission("insert", client_file, username)
-            print("-------File creation completed successfully--------\n")
 
         except Exception as e:
+            print("------FAILED: File/Directory could not be made----------\n")
             print(" << ERROR:", e)
 
+    print("-------File creation completed successfully--------\n")
 
     # create BLANK DIRECTORY
     else:
@@ -180,7 +188,7 @@ def delete(ftp, childServ):
 
         if ans in listOfYes or ans in listOfNo:
             break
-
+    #
     if ans in listOfNo:
         try:
             ftp.delete(name)
@@ -193,17 +201,22 @@ def delete(ftp, childServ):
             print(e)
             return
 
+    #
     else:
         print("Enter existing path\n >> ", end='')
         new_path = input()
 
+        #
         try:
             ftp.delete(new_path + name)
+
+            #
             for ser in childServ:
                 ser[0].delete(new_path + name)
             print("----------deletion successfully completed-------\n")
             return
 
+        #
         except Exception as e:
             print(e)
             return
@@ -211,13 +224,14 @@ def delete(ftp, childServ):
 
 # navigate to new folder
 def navigate(ftp, childServ):
+
     new_path = input("Enter new path\n >> ")
 
+    # change current path in parent and all other child servers
     try:
         ftp.cwd(new_path)
         for ser in childServ:
             ser.cwd(new_path)
-        currentDirectory = new_path
 
         print("-------Directory changed succesfully--------\n")
 
@@ -225,14 +239,27 @@ def navigate(ftp, childServ):
         print(e)
 
 def rename(ftp, childServ):
+
+    resp = ''
     old_name = input("Enter the file name to rename \n >> ")
     new_name = input("Enter the new file name\n >> ")
-    resp = ftp.rename(old_name, new_name)
-    #print(resp)
-    print("------File renamed succesfully in parent server-------\n")
-    print("------Changing file name in child servers----------\n")
+
+    try:
+        resp = ftp.rename(old_name, new_name)
+    except Exception as E:
+        print(resp)
+        print("------FAILED to rename file in parent server-------\n")
+        return
+
+    # rename files in child servers
     for ser in childServ:
-        ser.rename(old_name, new_name)
+
+        try:
+            resp = ser.rename(old_name, new_name)
+        except Exception as E:
+            print(resp)
+            print("------FAILED to rename file in ONE or MORE child servers-------\n")
+            return
 
     print("------File renaming is completed succesfully-------\n")
 
@@ -241,13 +268,9 @@ def rename(ftp, childServ):
 
 # list all current files and directories
 def ftp_list(ftp):
-    try:
 
-        # ftp.retrlines('LIST *README*')
-        # all_objects = ftp.nlst()
+    try:
         print("\n\n-------Begin of List------\n")
-        # for obj in all_objects:
-        # print(obj)
         ftp.retrlines('LIST')
         print("\n-------End of List------\n\n")
 
@@ -434,36 +457,48 @@ def read(ftp):
         print(E)
         return
 
-
+#
 def go_back(ftp, childServ):
+
+    # go back in current server, and other servers
     try:
         ftp.cwd("../")
         for ser in childServ:
             ser.cwd("../")
+
+    # print error
     except Exception as E:
         print(E)
 
 
+# needed for error handling
 class Execption:
     pass
 
 
 if __name__ == '__main__':
 
+    #
     ftp, childSer = connect_to_server()
 
+    # if there is a connection
     if ftp:
 
+        # display menu
+        # record current working directory
         help(ftp)
         currentDirectory = ftp.pwd()
 
+        # looping program
         while 1:
-            # print("%s >> " % currentDirectory, end='')
+
             print("\n****** Current Directory : %s *******\n" % ftp.pwd())
             print("Enter a command to perform operation or type 'h' to see the menu >> ", end='')
+
+            # get client request
             clientRequest = input().lower()
 
-            # Create
+            # Create file/directory
             if clientRequest == "create" or clientRequest == "c":
                 try:
                     create_blank_file_or_directory(childSer)
@@ -539,27 +574,45 @@ if __name__ == '__main__':
             else:
                 print(" << Unknown Command, type 'h' or 'help'")
 
+#
 def createPermission(flag, filename, owner, user=NULL):
+
+    #
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((MAINSERVERHOST, MAINSERVERPORT))
         ip = socket.gethostbyname(socket.gethostname())
+
+        #
         if flag=="insert":
             data = {"type":"insertPermissions", "fileDetails": {"name": filename, "owner": owner, "users":{}}}
+
+        #
         else:
             data = {"type":"insertPermissions", "fileDetails": {"name": filename, "owner": owner, "users":{"name":user['name'],"per":user['per']}}}
+
+        #
         jsData = json.dumps(data)
         sock.sendall(bytes(jsData, encoding="utf-8"))
         received = sock.recv(1024)
         data = received
+
+        #
         return str(data)
 
+#
 def getPermission(filename):
+
+    #
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((MAINSERVERHOST, MAINSERVERPORT))
         data = {"type":"getPermissions", "filename":filename}      
         jsData = json.dumps(data)
         sock.sendall(bytes(jsData, encoding="utf-8"))
         received = sock.recv(1024)
+
+    #
     data = received.decode('utf-8')
     dat = json.loads(data)
+
+    #
     return dat
