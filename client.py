@@ -2,12 +2,11 @@ from asyncio.windows_events import NULL
 from ftplib import FTP
 import io
 import json
-from logging import exception
 import os
 import shutil
 from pathlib import Path
-from pyftpdlib.authorizers import DummyAuthorizer
 import socket
+from Crypto.Cipher import AES
 
 ServerPort = 50000  # server port
 clientConnection = None
@@ -23,16 +22,15 @@ currentDirectory = ""
 username = ""
 
 # MainServer details
-MAINSERVERHOST, MAINSERVERPORT = "10.211.55.6", 60000
-
 MAINSERVERHOST = input("ENTER MAIN SERVER IP ADDRESS:\n >>")
-
+MAINSERVERPORT = input("ENTER MAIN SERVER PORT NUMBER:\n >>")
 
 
 # Prompts user for a server IP
 # If successful, prompts user for credentials
 # Returns a FTP object on success
 def connect_to_server():
+
     global clientConnection  # Global server IPS
     new_ftp = FTP()  # return object
     childServersList = [] # array to maintain child servers

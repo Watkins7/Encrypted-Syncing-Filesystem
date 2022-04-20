@@ -1,13 +1,24 @@
 from socket import socket
 import socketserver
 import json
+import socket
 
-HOST, PORT = "192.168.0.25", 60000
+# Get free socket
+sock = socket.socket()
+sock.bind(('', 0))
+PORT = sock.getsockname()[1]
+
+# Get running IP
+HOST = socket.gethostbyname(socket.gethostname())
 
 serverList = []
 global lockedFileslist
 lockedFileslist = []
+
+#
 class UserHandler(socketserver.BaseRequestHandler):
+
+    #
     def handle(self):
         self.data = self.request.recv(1024).strip()
         if "serverip" in format(self.data):
