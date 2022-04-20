@@ -130,8 +130,9 @@ def create_blank_file_or_directory(childServ):
         except Exception as e:
             print("------FAILED: File/Directory could not be made----------\n")
             print(" << ERROR:", e)
+            return
 
-    print("-------File creation completed successfully--------\n")
+        print("-------File creation completed successfully--------\n")
 
     # create BLANK DIRECTORY
     else:
@@ -280,8 +281,12 @@ def ftp_list(ftp):
 
 # change file permissions
 def change_permissions(ftp, childServ):
+
+    #
     filename = input("Input filename\n >> ")
     permissions = input("Input new permissions\n >> ").strip()
+
+    #
     try:
         ftp.sendcmd("SITE CHMOD " + permissions + " " + filename)
         for ser in childServ:
@@ -293,6 +298,7 @@ def change_permissions(ftp, childServ):
         print(E)
 
 
+#
 def change_owner(ftp, childServ):
     filename = input("Input filename\n >> ")
     owner = input("Input new owner\n >> ").strip()
@@ -327,7 +333,10 @@ def help(ftp):
 
 # write to SEDFS
 def write(ftp, childServ):
+
     local_name = input("Enter Local file path to upload\n >> ")
+
+    #
     try:
         print("\n-------File uploading started------")
         file = open(local_name, 'rb')
@@ -335,11 +344,15 @@ def write(ftp, childServ):
         print(E)
         return
 
+    #
     try:
+
         ftp.storbinary('STOR ' + local_name, file)  # send the file
         file.close()
         print("-------File has uploaded to primary server----")
         print("-------Writing Files in child servers---------")
+
+        #
         for ser in childServ:
             fileChildServ = open(local_name, 'rb')
             ser.storbinary('STOR ' + local_name, fileChildServ)
@@ -347,14 +360,17 @@ def write(ftp, childServ):
 
       
         print("-------File has uploaded successfully------\n\n")
-        
+
     except Exception as E:
         print(E)
 
 
 # update to SEDFS
 def update(ftp, childServ):
+
     sedfs_name = input("Enter SEDFS file path to download\n >> ")
+
+    #
     try:
         print("\n\n-------Begin of current content------\n")
         ftp.retrlines("RETR " + sedfs_name, fileLinePrinting)
@@ -366,18 +382,24 @@ def update(ftp, childServ):
         file1 = open(sedfs_name, 'rb')
         ftp.storbinary('STOR ' + sedfs_name, file1)
         file1.close()
+
+        #
         for ser in childServ:
             fileChildServ = open(sedfs_name, 'rb')
             ser.storbinary('STOR ' + sedfs_name, fileChildServ)
             fileChildServ.close()
                   
         print("-------File has updated successfully------\n\n")
-        
+
+    #
     except Exception as E:
         print(E)
 
+#
 def test(ftp, childServ):
+
     local_name = input("Enter Local file path to write\n >> ")
+
     # Create a socket (SOCK_STREAM means a TCP socket)
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         # Connect to server and send data
@@ -385,18 +407,23 @@ def test(ftp, childServ):
         sock.sendall(bytes("getlockedfiles"+ "\n", "utf-8"))
         # Receive users data from the server and shut down
         received = str(sock.recv(1024), "utf-8")
+
     lockedfilelist = received.split(";")
     print("locked file list:", lockedfilelist)
+
     if local_name in lockedfilelist:
         print("\nThe requested file is currently using by others, please try again later!!!\n")
         return
+
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((MAINSERVERHOST, MAINSERVERPORT))
         sock.sendall(bytes("lockfile:"+local_name+"\n", "utf-8"))
+
     try:
         li = ftp.nlst()
         print("file slist : ", li)
         print("file name: ",local_name)
+
         if local_name in li:
             print("\n\n-------Begin of current content------\n")
             ftp.retrlines("RETR " + local_name, fileLinePrinting)
@@ -408,56 +435,69 @@ def test(ftp, childServ):
             file1 = open(local_name, 'rb')
             ftp.storbinary('STOR ' + local_name, file1)
             file1.close()
+
             for ser in childServ:
                 fileChildServ = open(local_name, 'rb')
                 ser.storbinary('STOR ' + local_name, fileChildServ)
                 fileChildServ.close()
             print("-------File has updated successfully------\n\n")
+
         else:
+
             try:
                 print("\n-------File uploading started------")
                 file = open(local_name, 'w')
                 newcontent = input("---------Enter content to write in the file\n------")
                 file.write(newcontent)
                 file.close()
+
             except Exception as E:
                 print(E)
                 return
+
             try:
                 file1 = open(local_name, 'rb')
                 ftp.storbinary('STOR ' + local_name, file1)  # send the file
                 file1.close()
                 print("-------File has uploaded to primary server----")
                 print("-------Writing Files in child servers---------")
+
                 for ser in childServ:
                     fileChildServ = open(local_name, 'rb')
                     ser.storbinary('STOR ' + local_name, fileChildServ)
                     fileChildServ.close()
                 print("-------File has uploaded successfully------\n\n")
+
             except Exception as E:
                 print(E)
+
     except Exception as E:
         print(E)
+
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((MAINSERVERHOST, MAINSERVERPORT))
         sock.sendall(bytes("unlockfile:"+local_name+"\n", "utf-8"))
 
+#?????????????
 def fileLinePrinting(line):
     contentLine = "#%s#"%line
     print(contentLine)
 
 # read from sedfs
 def read(ftp):
+
     sedfs_name = input("Enter SEDFS file path to download\n >> ")
+
     try:
         print("\n\n-------Begin------\n")
         ftp.retrlines("RETR " + sedfs_name, fileLinePrinting)
         print("\n-------EOF------\n\n")
+
     except Exception as E:
         print(E)
         return
 
-#
+#go back one directory
 def go_back(ftp, childServ):
 
     # go back in current server, and other servers
