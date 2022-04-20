@@ -1,5 +1,7 @@
+from asyncio.windows_events import NULL
 from ftplib import FTP
 import io
+import json
 from logging import exception
 import os
 import shutil
@@ -18,6 +20,7 @@ list_of_known_servers = []
 is_file = ["F", "FILE", "f", "file", ]
 is_directory = ["D", "DIRECTORY", "d", "directory"]
 currentDirectory = ""
+username = ""
 
 # MainServer details
 MAINSERVERHOST, MAINSERVERPORT = "10.211.55.6", 60000
@@ -117,7 +120,7 @@ def create_blank_file_or_directory(childServ):
             print("------Creating File in child servers----------\n")
             for ser in childSer:
                 ser.storbinary(command, io.BytesIO(b''))
-
+            createPermission("insert", client_file, username)
             print("-------File creation completed successfully--------\n")
 
         except Exception as e:
@@ -537,3 +540,28 @@ if __name__ == '__main__':
             # Default
             else:
                 print(" << Unknown Command, type 'h' or 'help'")
+
+def createPermission(flag, filename, owner, user=NULL):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.connect((MAINSERVERHOST, MAINSERVERPORT))
+        ip = socket.gethostbyname(socket.gethostname())
+        if flag=="insert":
+            data = {"type":"insertPermissions", "fileDetails": {"name": filename, "owner": owner, "users":{}}}
+        else:
+            data = {"type":"insertPermissions", "fileDetails": {"name": filename, "owner": owner, "users":{"name":user['name'],"per":user['per']}}}
+        jsData = json.dumps(data)
+        sock.sendall(bytes(jsData, encoding="utf-8"))
+        received = sock.recv(1024)
+        data = received
+        return str(data)
+
+def getPermission(filename):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.connect((MAINSERVERHOST, MAINSERVERPORT))
+        data = {"type":"getPermissions", "filename":filename}      
+        jsData = json.dumps(data)
+        sock.sendall(bytes(jsData, encoding="utf-8"))
+        received = sock.recv(1024)
+    data = received.decode('utf-8')
+    dat = json.loads(data)
+    return dat
