@@ -1,6 +1,4 @@
-import os
-from fileinput import fileno
-
+# Server Libraries
 from pyftpdlib.authorizers import DummyAuthorizer
 from pyftpdlib.handlers import FTPHandler
 from pyftpdlib.servers import FTPServer
@@ -9,39 +7,31 @@ import socket
 # Used to display logging to stdout
 import logging.config
 import sys
-
+import os
 from datetime import datetime
 
-#######################################
+#################################################################################
 # Global Logger
-#######################################
-# Set logging configuration
-
+#################################################################################
+# Set global logging configuration
 logging.basicConfig(filename='fileServer.log', level=logging.DEBUG, filemode='w',
                     format='%(asctime)s\tLogger: %(name)s\tLevel: %(levelname)s\tEvent: %(message)s',
                     datefmt='%Y:%m:%d %H:%M:%S')
 
-# logging.basicConfig(filename='fileServer.log', level=logging.DEBUG, filemode='w',
-# format='%(asctime)s\tLogger: %(name)s\tLevel: %(levelname)s\tEvent: %(message)s',
-# datefmt='%Y:%m:%d %H:%M:%S')
-
 # Create Logger
+# Create Logger Handler, set level to at least DEBUG
 serverLog = logging.getLogger("SEDFS Server")
-
-# Create Handler, set level to at least DEBUG
 loggingHandler = logging.StreamHandler(stream=sys.stdout)
 serverLog.addHandler(loggingHandler)
 serverLog.setLevel(logging.DEBUG)
 
+# Global Variables
 known_servers = []
 listOfNo = ["no", "n", "NO", "N"]
-
-# MainServer details
-MAINSERVERHOST, MAINSEREVERPORT = "10.211.55.6", 60000
-
 MAINSERVERHOST = input("ENTER MAIN SERVER IP ADDRESS:\n >>")
+MAINSEREVERPORT = input("ENTER MAIN SERVER PORT NUMBER:\n >>")
 
-
+# Server Class
 class SEDFS_server(FTPServer):
 
     # init for child class
@@ -51,8 +41,9 @@ class SEDFS_server(FTPServer):
 
         return
 
-
+# Server Handler
 class SEDFS_handler(FTPHandler):
+
     user = ""  # save global username
 
     # child handler init
@@ -66,40 +57,30 @@ class SEDFS_handler(FTPHandler):
 
         return
 
-    # Polymorph of on_login
-    # def on_login(self, username):
-    # user = username
-    # self.on_login(username)
-
-
 # Configuration function for loading users
 def load_users(authorizer):
 
     # Create a socket (SOCK_STREAM means a TCP socket)
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+
         # Connect to server and send data
-        sock.connect((MAINSERVERHOST, MAINSEREVERPORT))
+        try:
+            sock.connect((MAINSERVERHOST, MAINSEREVERPORT))
+        except Exception as E:
+            print(E)
+            print("Warning, you did not connect to the main server...no users added")
+            return
+
+        # else, connection established with main server
         sock.sendall(bytes("userdata"+ "\n", "utf-8"))
 
         # Receive users data from the server and shut down
         received = str(sock.recv(1024), "utf-8")
+
+    # split userConfig list recieved from mainserver
     lists = received.split(";")
-    try:
-        file = open("configuration files/userConfig.txt", mode='r')
-    except:
-        serverLog.info("[*] WARNING configuration files/userConfig.txt not found, no users added")
-        return
 
-    lines = file.readlines()
-    file.close()
-
-    # Try to add NEW SYSTEM GROUP sedfs
-    try:
-        os.system('sudo groupadd --system sedfs')
-
-    except Exception as E:
-        print(E)
-
+    # for all lines in the user configuration file
     for line in lists:
 
         # remove whitespaces, delimiters, append to authorizedUsers
@@ -115,18 +96,10 @@ def load_users(authorizer):
         except Exception as E:
             print(E)
 
-        try:
-            os.system(
-                'sudo adduser --system --shell=/sbin/nologin --disabled-login --disabled-password --ingroup sedfs --no-create-home  --quiet ' +
-                user[0])
-            # serverLog.info("[+] Local System added: %s" % user[0])
-
-        except Exception as E:
-            print(E)
-
     return
 
-
+"""
+# cysnc lib not needed for this implementation
 def server_sync():
     while 1:
         print("Enter IP of server to sync\n >> ", end='')
@@ -149,10 +122,12 @@ def server_sync():
         ans = input("Do you wish to continue?\n >> ")
         if ans in listOfNo:
             break
+"""
 
-
+# File Server Setup Function
 def SEDFS_setup():
-    # Get local address information
+
+    # Get local address information, set hosting port as 50000
     server_IP = socket.gethostbyname(socket.gethostname())
     address = (server_IP, 50000)
 
