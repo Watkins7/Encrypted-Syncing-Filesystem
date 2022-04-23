@@ -8,7 +8,7 @@ sock.bind(('', 0))
 PORT = sock.getsockname()[1]
 
 # Get running IP
-HOST = socket.gethostbyname(socket.gethostname())
+HOST = sock.getsockname()[1]
 
 serverList = []
 global lockedFileslist
@@ -109,6 +109,22 @@ class UserHandler(socketserver.BaseRequestHandler):
                 filedata[data['fileDetails']['name']] =  {"name" : data['fileDetails']['name'], "owner": data['fileDetails']['owner'], "users":  {}}
 
             #
+            with open("configuration files/permissions.json", "w") as file1:
+                json.dump(filedata, file1)
+
+            #
+            self.request.sendall(bytes(str("200"), "utf-8"))
+
+                #
+        if "delPermissions" in format(self.data):
+            data = json.loads(self.data)
+            file = open("configuration files/permissions.json")
+            filedata = json.load(file)
+
+            #
+            if data['filename'] in filedata:
+                del filedata[data['filename']]
+
             with open("configuration files/permissions.json", "w") as file1:
                 json.dump(filedata, file1)
 
