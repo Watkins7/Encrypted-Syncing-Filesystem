@@ -11,8 +11,8 @@ listOfNo = ["no", "n", "NO", "N"]
 is_file = ["F", "FILE", "f", "file", ]
 is_directory = ["D", "DIRECTORY", "d", "directory"]
 KEY = bytes("0123456789abcdef")
-IV = bytes(16)
-CIPHER = AES.new(KEY, AES.MODE_CBC, IV)
+
+CIPHER = AES.new(KEY, AES.MODE_ECB)
 
 #######################################################################################
 # Display Help Menu
