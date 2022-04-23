@@ -7,7 +7,6 @@ from Crypto.Util.Padding import pad
 from base64 import b64encode, b64decode
 from cryptography.fernet import Fernet
 
-
 listOfYes = ["yes", "y", "YES", "Y"]
 listOfNo = ["no", "n", "NO", "N"]
 is_file = ["F", "FILE", "f", "file", ]
@@ -18,6 +17,7 @@ FERNET_KEY = b'N8AcL6QxLj8UlcZvCnC5Fe-o6kOiebaGeF5gb1Qzwqo='
 CIPHER = AES.new(KEY, AES.MODE_CBC, IV)
 DECRYPTCIPHER = AES.new(KEY, AES.MODE_CBC, CIPHER.iv)
 fernet = Fernet(FERNET_KEY)
+
 
 #######################################################################################
 # Display Help Menu
@@ -39,6 +39,7 @@ def help(ftp):
           "\t'k' == Change Owner\n",
           "\t'u' == Rename File\n",
           "\t'h' == Help\n")
+
 
 #
 ########################################################################################
@@ -66,6 +67,7 @@ def open_program():
 
     except Exception as e:
         print(e)
+
 
 #######################################################################################
 # Makes a blank file or directory in SEDFS
@@ -114,13 +116,12 @@ def create_blank_file_or_directory(childServ, ftp, username, MAINSERVERHOST, MAI
         print("Create directory name\n >> ", end='')
         client_directory = input()
 
-
         # encypt directory name
         client_directory = str(doEncrypt(client_directory))
 
         try:
             response = ftp.mkd(client_directory)
-            #print(" << ", response)
+            # print(" << ", response)
             print("------Directory created in parent server-----------\n")
             print("------Creating Directory in child servers----------\n")
             for ser in childServ:
@@ -131,22 +132,23 @@ def create_blank_file_or_directory(childServ, ftp, username, MAINSERVERHOST, MAI
         except Exception as e:
             print(" << ERROR:", e)
 
+
 #######################################################################################
 #
 #######################################################################################
 def createPermission(flag, filename, owner, MAINSERVERHOST, MAINSERVERPORT, user=None):
-
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((MAINSERVERHOST, MAINSERVERPORT))
         ip = socket.gethostbyname(socket.gethostname())
 
         #
-        if flag=="insert":
-            data = {"type":"insertPermissions", "fileDetails": {"name": filename, "owner": owner, "users":{}}}
+        if flag == "insert":
+            data = {"type": "insertPermissions", "fileDetails": {"name": filename, "owner": owner, "users": {}}}
 
         #
         else:
-            data = {"type":"insertPermissions", "fileDetails": {"name": filename, "owner": owner, "users":{"name":user['name'],"per":user['per']}}}
+            data = {"type": "insertPermissions", "fileDetails": {"name": filename, "owner": owner,
+                                                                 "users": {"name": user['name'], "per": user['per']}}}
 
         #
         jsData = json.dumps(data)
@@ -157,15 +159,15 @@ def createPermission(flag, filename, owner, MAINSERVERHOST, MAINSERVERPORT, user
         #
         return str(data)
 
+
 #######################################################################################
 #
 #######################################################################################
 def getPermission(filename, MAINSERVERHOST, MAINSERVERPORT):
-
     #
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((MAINSERVERHOST, MAINSERVERPORT))
-        data = {"type":"getPermissions", "filename":filename}
+        data = {"type": "getPermissions", "filename": filename}
         jsData = json.dumps(data)
         sock.sendall(bytes(jsData, encoding="utf-8"))
         received = sock.recv(1024)
@@ -182,11 +184,10 @@ def getPermission(filename, MAINSERVERHOST, MAINSERVERPORT):
 # delete permissions
 #######################################################################################
 def delPermission(filename, MAINSERVERHOST, MAINSERVERPORT):
-
     #
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((MAINSERVERHOST, MAINSERVERPORT))
-        data = {"type":"delPermissions", "filename":filename}
+        data = {"type": "delPermissions", "filename": filename}
         jsData = json.dumps(data)
         sock.sendall(bytes(jsData, encoding="utf-8"))
         received = sock.recv(1024)
@@ -194,11 +195,11 @@ def delPermission(filename, MAINSERVERHOST, MAINSERVERPORT):
     #
     data = received.decode('utf-8')
 
+
 #######################################################################################
 # Delete 'file' or 'directory'
 #######################################################################################
 def delete(ftp, childServ, MAINSERVERHOST, MAINSERVERPORT):
-  
     name = input("Enter name to delete\n >> ")
     li = ftp.nlst()
     token = ""
@@ -250,47 +251,63 @@ def delete(ftp, childServ, MAINSERVERHOST, MAINSERVERPORT):
             print(e)
             return
 
+
 #######################################################################################
 # navigate to new folder
 #######################################################################################
 def navigate(ftp, childServ):
-
     new_path = input("Enter new path\n >> ")
+    li = ftp.nlst()
+    token = ""
+    for nam in li:
+        if new_path == doDecrypt(nam):
+            token = nam
+    if token == "":
+        print("No such File found.....")
+        return
 
     # encrypt path
-    new_path = bytes(new_path)
-    new_path = str(CIPHER.encrypt(pad(new_path, AES.block_size)))
+    # new_path = bytes(new_path)
+    # new_path = str(CIPHER.encrypt(pad(new_path, AES.block_size)))
 
     # change current path in parent and all other child servers
     try:
-        ftp.cwd(new_path)
+        ftp.cwd(token)
         for ser in childServ:
-            ser.cwd(new_path)
+            ser.cwd(token)
 
         print("-------Directory changed succesfully--------\n")
 
     except Exception as e:
         print(e)
 
+
 #######################################################################################
 # rename file on all known servers
 #######################################################################################
 def rename(ftp, childServ):
-
     resp = ''
     old_name = input("Enter the file name to rename \n >> ")
     new_name = input("Enter the new file name\n >> ")
+    li = ftp.nlst()
+    token = ""
+    for nam in li:
+        if old_name == doDecrypt(nam):
+            token = nam
+    if token == "":
+        print("No such File found.....")
+        return
 
     # encrypt oldname
-    old_name = bytes(old_name)
-    old_name = str(CIPHER.encrypt(pad(old_name, AES.block_size)))
+    # old_name = bytes(old_name)
+    # old_name = str(CIPHER.encrypt(pad(old_name, AES.block_size)))
 
     # encrypt newname
     new_name = bytes(new_name)
     new_name = str(CIPHER.encrypt(pad(new_name, AES.block_size)))
 
     try:
-        resp = ftp.rename(old_name, new_name)
+        resp = ftp.rename(token, new_name)
     except Exception as E:
         print(resp)
         print("------FAILED to rename file in parent server-------\n")
@@ -308,11 +325,11 @@ def rename(ftp, childServ):
 
     print("------File renaming is completed succesfully-------\n")
 
+
 #######################################################################################
 # list all current files and directories
 #######################################################################################
 def ftp_list(ftp):
-
     try:
         print("\n\n-------Begin of List------\n")
         li = ftp.nlst()
@@ -328,8 +345,6 @@ def ftp_list(ftp):
 # change file permissions
 #######################################################################################
 def change_permissions(ftp, childServ):
-
-
     # encrypt file name
     filename = input("Input filename\n >> ")
     filename = bytes(filename)
@@ -349,11 +364,11 @@ def change_permissions(ftp, childServ):
     except Exception as E:
         print(E)
 
+
 #######################################################################################
 #
 #######################################################################################
 def change_owner(ftp, childServ):
-
     # encrypt file name
     filename = input("Input filename\n >> ")
     filename = bytes(filename)
@@ -368,11 +383,11 @@ def change_owner(ftp, childServ):
     except Exception as E:
         print(E)
 
+
 #######################################################################################
 # upload local files to SEDFS
 #######################################################################################
 def uploadlocalfiles(ftp, childServ):
-
     # encrypt file
     local_name = input("Enter Local file path to upload\n >> ")
 
@@ -429,24 +444,24 @@ def uploadlocalfiles(ftp, childServ):
 def write(ftp, childServ, MAINSERVERHOST, MAINSERVERPORT):
     local_name = input("Enter Local file path to write\n >> ")
     # Create a socket (SOCK_STREAM means a TCP socket)
-    #with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        # Connect to server and send data
-        #sock.connect((MAINSERVERHOST, MAINSERVERPORT))
-        #sock.sendall(bytes("getlockedfiles"+ "\n", "utf-8"))
-        # Receive users data from the server and shut down
-        #received = str(sock.recv(1024), "utf-8")
-    #lockedfilelist = received.split(";")
-    #print("locked file list:", lockedfilelist)
-    #if local_name in lockedfilelist:
-        #print("\nThe requested file is currently using by others, please try again later!!!\n")
-        #return
+    # with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+    # Connect to server and send data
+    # sock.connect((MAINSERVERHOST, MAINSERVERPORT))
+    # sock.sendall(bytes("getlockedfiles"+ "\n", "utf-8"))
+    # Receive users data from the server and shut down
+    # received = str(sock.recv(1024), "utf-8")
+    # lockedfilelist = received.split(";")
+    # print("locked file list:", lockedfilelist)
+    # if local_name in lockedfilelist:
+    # print("\nThe requested file is currently using by others, please try again later!!!\n")
+    # return
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((MAINSERVERHOST, MAINSERVERPORT))
-        sock.sendall(bytes("lockfile:"+local_name+"\n", "utf-8"))
+        sock.sendall(bytes("lockfile:" + local_name + "\n", "utf-8"))
     try:
         li = ftp.nlst()
         print("file slist : ", li)
-        print("file name: ",local_name)
+        print("file name: ", local_name)
         if local_name in li:
             print("\n\n-------Begin of current content------\n")
             ftp.retrlines("RETR " + local_name, tests.fileLinePrinting)
@@ -490,13 +505,13 @@ def write(ftp, childServ, MAINSERVERHOST, MAINSERVERPORT):
         print(E)
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((MAINSERVERHOST, MAINSERVERPORT))
-        sock.sendall(bytes("unlockfile:"+local_name+"\n", "utf-8"))
+        sock.sendall(bytes("unlockfile:" + local_name + "\n", "utf-8"))
+
 
 #######################################################################################
 # update to SEDFS
 #######################################################################################
 def update(ftp, childServ):
-
     # encrypt local_name
     sedfs_name = input("Enter SEDFS file path to download\n >> ")
     enc_sedfs_name = bytes(sedfs_name)
@@ -509,7 +524,6 @@ def update(ftp, childServ):
         print("\n\n-------Begin of current content------\n")
         ftp.retrlines("RETR " + enc_sedfs_name, tests.fileLinePrinting)
         print("\n-------EOF------\n\n")
-
 
         newcontent = input("---------Enter content to append in the file\n------")
 
@@ -552,24 +566,27 @@ def update(ftp, childServ):
     except Exception as E:
         print(E)
 
+
 #######################################################################################
 # read from sedfs
 #######################################################################################
 def read(ftp):
-
     # encrypt local_name
     sedfs_name = input("Enter SEDFS file path to download\n >> ")
     sedfs_name = bytes(sedfs_name)
-    sedfs_name = str(CIPHER.encrypt(pad(sedfs_name, AES.block_size)))
+    sedfs_name = doEncrypt(sedfs_name)
 
     try:
         print("\n\n-------Begin------\n")
-        ftp.retrlines("RETR " + sedfs_name, tests.fileLinePrinting)
+        readText = ftp.retrlines("RETR " + sedfs_name, tests.fileLinePrinting)
+        readText = doDecrypt(readText)
+        print(readText)
         print("\n-------EOF------\n\n")
 
     except Exception as E:
         print(E)
         return
+
 
 #######################################################################################
 # go back one directory
@@ -590,8 +607,8 @@ def go_back(ftp, childServ):
 # encryption
 #######################################################################################
 def doEncrypt(content):
-    #con = CIPHER.encrypt(pad(bytes(content, "utf-8"), AES.block_size))
-    #result = b64encode(con).decode("utf-8")
+    # con = CIPHER.encrypt(pad(bytes(content, "utf-8"), AES.block_size))
+    # result = b64encode(con).decode("utf-8")
     return fernet.encrypt(content.encode()).decode("utf-8")
 
 
@@ -599,8 +616,9 @@ def doEncrypt(content):
 # decryption
 #######################################################################################
 def doDecrypt(content):
-    #result = DECRYPTCIPHER.decrypt(b64decode(content.encode("utf-8"))).decode("utf-8")
-    return fernet.decrypt(bytes(content,"utf-8")).decode()
+    # result = DECRYPTCIPHER.decrypt(b64decode(content.encode("utf-8"))).decode("utf-8")
+    return fernet.decrypt(bytes(content, "utf-8")).decode()
+
 
 #######################################################################################
 # needed for error handling
