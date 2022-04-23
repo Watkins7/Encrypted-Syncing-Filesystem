@@ -1,32 +1,36 @@
 from ftplib import FTP
-import io
-import os
-import shutil
-from pathlib import Path
+import socket
+import client_functions
 
+# Global Variables
 ServerPort = 50000  # server port
 clientConnection = None
-
+serverIps = []
 quit = ["QUIT", "Q", "quit", "q", "exit", "EXIT", "E", "e"]
 listOfYes = ["yes", "y", "YES", "Y"]
-listOfNo = ["no", "n", "NO", "N"]
 list_of_known_servers = []
-is_file = ["F", "FILE", "f", "file", ]
-is_directory = ["D", "DIRECTORY", "d", "directory"]
-currentDirectory = ""
+username = ""
 
+# MainServer details
+MAINSERVERHOST = input("ENTER MAIN SERVER IP ADDRESS:\n >>")
+MAINSERVERPORT = int(input("ENTER MAIN SERVER PORT NUMBER:\n >>"))
 
+#######################################################################################
 # Prompts user for a server IP
 # If successful, prompts user for credentials
 # Returns a FTP object on success
+#######################################################################################
 def connect_to_server():
+
     global clientConnection  # Global server IPS
     new_ftp = FTP()  # return object
+    childServersList = [] # array to maintain child servers
 
-    # find a server connection
+    # find an intial server connection
     while 1:
         print("\nInput SEDFS Server IPv4 Address ('quit' to exit)\n >> ", end='')
-        serverIP = input().strip()
+        #serverIP = input().strip()
+        serverIP = "10.211.55.5"
 
         if serverIP in quit:
             print("No connection made. Goodbye.")
@@ -45,16 +49,37 @@ def connect_to_server():
     while True:
 
         # Get Username and Password
-        username = input("\nPlease enter username:\n >> ")
-        password = input("\nPlease enter password:\n >> ")
+        #username = input("\nPlease enter username:\n >> ")
+        username = "user"
+        #password = input("\nPlease enter password:\n >> ")
+        password = "12345"
 
         # attempt login
         try:
             new_ftp.login(username, password)
             print(" << Login Success!")
             new_ftp.set_pasv(True)  # Set to passive mode if time out
+
+            #Fetching active servers details from main server
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                sock.connect((MAINSERVERHOST, MAINSERVERPORT))
+                ip = socket.gethostbyname(socket.gethostname())
+                sock.sendall(bytes("getip\n", "utf-8"))
+                received = str(sock.recv(1024), "utf-8")
+            activeservers = received.split(";")
+            serverIps = activeservers
+            print("\nCurrent active servers :",activeservers,"\n")
+
+            #
+            for ips in serverIps:
+                if ips.strip() != serverIP.strip():
+                    con = FTP()
+                    con.connect(ips.strip(), ServerPort, timeout=5)
+                    con.login(username, password)
+                    childServersList.append(con)
             break
 
+        #
         except Exception as e:
             print(e)
 
@@ -65,287 +90,95 @@ def connect_to_server():
             return False
 
     list_of_known_servers.append(serverIP)  # Append server information
-    return new_ftp  # return FTP object
+    return new_ftp, childServersList  # return FTP object
 
-
-# Makes a blank file or directory in SEDFS
-def create_blank_file_or_directory():
-    # loop until user says 'FILE' or 'DIRECTORY'
-    while True:
-        print(" >> File (F) or Directory (D)\n >> ", end='')
-        response = input()
-
-        if response in is_file or response in is_directory:
-            break
-
-    # create BLANK FILE
-    if response in is_file:
-        print("Create file name\n >> ", end='')
-        client_file = input()
-        command = 'STOR ' + client_file
-
-        try:
-            response = ftp.storbinary(command, io.BytesIO(b''))
-            print(" << ", response)
-
-        except Exception as e:
-            print(" << ERROR:", e)
-
-
-    # create BLANK DIRECTORY
-    else:
-        print("Create directory name\n >> ", end='')
-        client_directory = input()
-
-        try:
-            response = ftp.mkd(client_directory)
-            print(" << ", response)
-
-        except Exception as e:
-            print(" << ERROR:", e)
-
-
-# Open Text Editor
-# Gets notepad on Windows, Nano on Linux
-def open_program():
-    text_editor = input("\nPlease enter text editor:\n >> ")
-    file = input("\nPlease enter file:\n >> ")
-
-    editor_path = shutil.which(text_editor)
-    is_a_file = Path(file).is_file()
-
-    if not editor_path:
-        print(" << ERROR; Text Editor, '%s', does not exist", text_editor)
-        return
-
-    if not is_a_file:
-        print(" << ERROR; Path incorrect or is not file")
-        return
-
-    try:
-        os.system(editor_path + " " + file)
-        print()
-
-    except Exception as e:
-        print(e)
-
-
-# Delete 'file' or 'directory'
-def delete(ftp):
-    name = input("Enter name to delete\n >> ")
-
-    # Ask if user wants new path
-    while True:
-        print("Enter new path?\n >> ", end='')
-        ans = input().lower()
-
-        if ans in listOfYes or ans in listOfNo:
-            break
-
-    if ans in listOfNo:
-        try:
-            ftp.delete(name)
-            return
-
-        except Exception as e:
-            print(e)
-            return
-
-    else:
-        print("Enter existing path\n >> ", end='')
-        new_path = input()
-
-        try:
-            ftp.delete(new_path + name)
-            return
-
-        except Exception as e:
-            print(e)
-            return
-
-
-# navigate to new folder
-def navigate(ftp):
-    new_path = input("Enter new path\n >> ")
-
-    try:
-        ftp.cwd(new_path)
-        currentDirectory = new_path
-
-    except Execption as e:
-        print(e)
-
-def rename(ftp):
-    new_name = input("Enter new name\n >> ")
-    old_name = input("Enter old name\n >> ")
-    resp = ftp.rename(old_name, new_name)
-    print(resp)
-
-
-# list all current files and directories
-def ftp_list(ftp):
-    try:
-
-        # ftp.retrlines('LIST *README*')
-        # all_objects = ftp.nlst()
-        print("\n\n-------Begin of List------\n")
-        # for obj in all_objects:
-        # print(obj)
-        ftp.retrlines('LIST')
-        print("\n-------End of List------\n\n")
-
-    except Exception as E:
-        print("Error: ", E)
-
-
-# change file permissions
-def change_permissions(ftp):
-    filename = input("Input filename\n >> ")
-    permissions = input("Input new permissions\n >> ").strip()
-    try:
-        ftp.sendcmd("SITE CHMOD" + permissions + " " + filename)
-    except Exception as E:
-        print(E)
-
-
-def change_owner(ftp):
-    filename = input("Input filename\n >> ")
-    owner = input("Input new owner\n >> ").strip()
-    try:
-        ftp.sendcmd("SITE CHOWN" + owner + " " + filename)
-    except Exception as E:
-        print(E)
-
-
-# Display Help Menu
-def help(ftp):
-    print("============================\n",
-          "\nCurrent Path: " + ftp.pwd() + "\n\n",
-          "\t'q' == Quit SEDFS\n",
-          "\t'r' == Read SEDFS file\n",
-          "\t'w' == Write to SEDFS\n",
-          "\t'p' == Change permissions\n",
-          "\t'c' == Create new SEDFS file/directory\n",
-          "\t'n' == Navigate to new directory\n",
-          "\t'b' == Move back 1 directory\n",
-          "\t'l' == List directory contents contents\n",
-          "\t'd' == Delete file/directory\n",
-          "\t's' == Display Server Information\n",
-          "\t'o' == Open Text Editor\n",
-          "\t'k' == Change Owner\n",
-          "\t'u' == Change Name\n",
-          "\t'h' == Help\n")
-
-
-# write to SEDFS
-def write(ftp):
-    local_name = input("Enter Local file path to upload\n >> ")
-    try:
-        print("\n-------File uploading started------")
-        file = open(local_name, 'rb')
-    except Exception as E:
-        print(E)
-        return
-
-    try:
-        ftp.storbinary('STOR ' + local_name, file)  # send the file
-        file.close()
-        print("-------File has uploaded successfully------\n\n")
-    except Exception as E:
-        print(E)
-
-
-# read from sedfs
-def read(ftp):
-    sedfs_name = input("Enter SEDFS file path to download\n >> ")
-    try:
-        print("\n\n-------Begin------\n")
-        ftp.retrbinary("RETR " + sedfs_name, print)
-        print("\n-------EOF------\n\n")
-    except Exception as E:
-        print(E)
-        return
-
-
-def go_back(ftp):
-    try:
-        ftp.cwd("../")
-    except Exception as E:
-        print(E)
-
-
-class Execption:
-    pass
-
-
+#######################################################################################
+# main
+#######################################################################################
 if __name__ == '__main__':
 
-    ftp = connect_to_server()
+    #
+    ftp, childSer = connect_to_server()
 
+    # if there is a connection
     if ftp:
 
+        # display menu
+        # record current working directory
         help(ftp)
         currentDirectory = ftp.pwd()
 
+        # looping program
         while 1:
-            # print("%s >> " % currentDirectory, end='')
-            print("\n****** Current Directory : %s *******\n" % currentDirectory)
+
+            print("\n****** Current Directory : %s *******\n" % ftp.pwd())
             print("Enter a command to perform operation or type 'h' to see the menu >> ", end='')
+
+            # get client request
             clientRequest = input().lower()
 
-            # Create
+            # Create file/directory
             if clientRequest == "create" or clientRequest == "c":
                 try:
-                    create_blank_file_or_directory()
+                    client_functions.create_blank_file_or_directory(childSer, ftp, username, MAINSERVERHOST, MAINSERVERPORT)
                     print(" << SUCCESS")
 
                 except Exception as e:
                     print(" << ERROR")
 
+            # Upload Files
+            elif clientRequest == "upload" or clientRequest == "upl":
+                client_functions.uploadlocalfiles(ftp, childSer)
+            
             # Write
             elif clientRequest == "write" or clientRequest == "w":
-                write(ftp)
+                client_functions.write(ftp, childSer, MAINSERVERHOST, MAINSERVERPORT)
 
             # read
             elif clientRequest == "read" or clientRequest == "r":
-                read(ftp)
+                client_functions.read(ftp)
+
+            # update 
+            elif clientRequest == "update" or clientRequest == "up":
+                client_functions.update(ftp, childSer)
+
+            elif clientRequest == "test" or clientRequest == "test":
+                client_functions.tests.test(ftp, childSer, MAINSERVERHOST, MAINSERVERPORT)
 
             # read
             elif clientRequest == "rename" or clientRequest == "u":
-                rename(ftp)
+                client_functions.rename(ftp, childSer)
 
             # change permissions
             elif clientRequest == "permissions" or clientRequest == "p":
-                print("Not tested")
-                change_permissions(ftp)
+                client_functions.change_permissions(ftp, childSer)
 
             # Navigate
             elif clientRequest == "n" or clientRequest == "navigate":
-                navigate(ftp)
+                client_functions.navigate(ftp, childSer)
 
             # Navigate
             elif clientRequest == "k" or clientRequest == "chown":
-                change_owner(ftp)
+                client_functions.change_owner(ftp, childSer)
 
             # Back 1 Directory
             elif clientRequest == "b" or clientRequest == "back":
-                print("Not tested")
-                go_back(ftp)
+                client_functions.go_back(ftp, childSer)
 
             # Delete
             elif clientRequest == "d" or clientRequest == "delete":
-                delete(ftp)
+                client_functions.delete(ftp, childSer, MAINSERVERHOST, MAINSERVERPORT)
 
             # List
             elif clientRequest == "l" or clientRequest == "list":
-                ftp_list(ftp)
+                client_functions.ftp_list(ftp)
 
             # Open program with file
             elif clientRequest == "o" or clientRequest == "open" or clientRequest == "text editor" or \
                     clientRequest == "open editor" or clientRequest == "open text editor" or \
                     clientRequest == "open text":
 
-                open_program()
+                client_functions.open_program()
 
             # Status
             elif clientRequest == "s" or clientRequest == "status":
@@ -358,7 +191,7 @@ if __name__ == '__main__':
 
             # Help
             elif clientRequest == "help" or clientRequest == "h":
-                help(ftp)
+                client_functions.help(ftp)
 
             # Default
             else:
