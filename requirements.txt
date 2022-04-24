@@ -1,0 +1,2 @@
+pycryptodome==3.14.1
+pyftplib==1.5.6

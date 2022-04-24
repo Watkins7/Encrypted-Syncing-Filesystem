@@ -3,21 +3,20 @@ from pathlib import Path
 import tests
 import io
 from Crypto.Cipher import AES
-from Crypto.Util.Padding import pad
-from base64 import b64encode, b64decode
-from cryptography.fernet import Fernet
+from Crypto.Util.Padding import pad, unpad
 
 
 listOfYes = ["yes", "y", "YES", "Y"]
 listOfNo = ["no", "n", "NO", "N"]
 is_file = ["F", "FILE", "f", "file", ]
 is_directory = ["D", "DIRECTORY", "d", "directory"]
-KEY = bytes("0123456789abcdef", "utf-8")
-IV = bytes(16)
-FERNET_KEY = b'N8AcL6QxLj8UlcZvCnC5Fe-o6kOiebaGeF5gb1Qzwqo='
-CIPHER = AES.new(KEY, AES.MODE_CBC, IV)
-DECRYPTCIPHER = AES.new(KEY, AES.MODE_CBC, CIPHER.iv)
-fernet = Fernet(FERNET_KEY)
+
+# crypto variables
+BLOCK_SIZE = 32
+KEY = "0123456789abcdef".encode()
+cipher = AES.new(KEY, AES.MODE_ECB)
+decipher = AES.new(KEY, AES.MODE_ECB)
+
 
 #######################################################################################
 # Display Help Menu
@@ -85,10 +84,9 @@ def create_blank_file_or_directory(childServ, ftp, username, MAINSERVERHOST, MAI
         client_file = input()
 
         # encrypt file name
-        client_file = str(doEncrypt(client_file))
-        print(client_file)
+        enc_client_file = doEncrypt(client_file)
 
-        command = 'STOR ' + client_file
+        command = 'STOR ' + enc_client_file
 
         # create file for all servers
         try:
@@ -99,7 +97,11 @@ def create_blank_file_or_directory(childServ, ftp, username, MAINSERVERHOST, MAI
                 ser.storbinary(command, io.BytesIO(b''))
 
             # ?????????????????
-            createPermission("insert", doDecrypt(client_file), username, MAINSERVERHOST, MAINSERVERPORT)
+            try:
+                createPermission("insert", doEncrypt(client_file), username, MAINSERVERHOST, MAINSERVERPORT)
+            except Exception as E:
+                print("Failed to create permissions")
+                print(E)
 
         except Exception as e:
             print("------FAILED: File/Directory could not be made----------\n")
@@ -116,7 +118,7 @@ def create_blank_file_or_directory(childServ, ftp, username, MAINSERVERHOST, MAI
 
 
         # encypt directory name
-        client_directory = str(doEncrypt(client_directory))
+        client_directory = doEncrypt(client_directory)
 
         try:
             response = ftp.mkd(client_directory)
@@ -258,8 +260,7 @@ def navigate(ftp, childServ):
     new_path = input("Enter new path\n >> ")
 
     # encrypt path
-    new_path = bytes(new_path)
-    new_path = str(CIPHER.encrypt(pad(new_path, AES.block_size)))
+    new_path = doEncrypt(new_path)
 
     # change current path in parent and all other child servers
     try:
@@ -282,12 +283,10 @@ def rename(ftp, childServ):
     new_name = input("Enter the new file name\n >> ")
 
     # encrypt oldname
-    old_name = bytes(old_name)
-    old_name = str(CIPHER.encrypt(pad(old_name, AES.block_size)))
+    old_name = doEncrypt(old_name)
 
     # encrypt newname
-    new_name = bytes(new_name)
-    new_name = str(CIPHER.encrypt(pad(new_name, AES.block_size)))
+    new_name = doEncrypt(new_name)
 
     try:
         resp = ftp.rename(old_name, new_name)
@@ -332,8 +331,7 @@ def change_permissions(ftp, childServ):
 
     # encrypt file name
     filename = input("Input filename\n >> ")
-    filename = bytes(filename)
-    filename = str(CIPHER.encrypt(pad(filename, AES.block_size)))
+    filename = doEncrypt(filename)
 
     # get permissions
     permissions = input("Input new permissions\n >> ").strip()
@@ -356,8 +354,7 @@ def change_owner(ftp, childServ):
 
     # encrypt file name
     filename = input("Input filename\n >> ")
-    filename = bytes(filename)
-    filename = str(CIPHER.encrypt(pad(filename, AES.block_size)))
+    filename = doEncrypt(filename)
 
     owner = input("Input new owner\n >> ").strip()
     try:
@@ -401,8 +398,7 @@ def uploadlocalfiles(ftp, childServ):
     try:
 
         # encrypt local_name
-        enc_local_name = bytes(local_name)
-        enc_local_name = str(CIPHER.encrypt(pad(enc_local_name, AES.block_size)))
+        enc_local_name = doEncrypt(local_name)
 
         # open encrypt file
         file_to_send = open(enc_local_name, 'rb')
@@ -427,42 +423,46 @@ def uploadlocalfiles(ftp, childServ):
 # write to SEDFS
 #######################################################################################
 def write(ftp, childServ, MAINSERVERHOST, MAINSERVERPORT):
+
     local_name = input("Enter Local file path to write\n >> ")
-    # Create a socket (SOCK_STREAM means a TCP socket)
-    #with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        # Connect to server and send data
-        #sock.connect((MAINSERVERHOST, MAINSERVERPORT))
-        #sock.sendall(bytes("getlockedfiles"+ "\n", "utf-8"))
-        # Receive users data from the server and shut down
-        #received = str(sock.recv(1024), "utf-8")
-    #lockedfilelist = received.split(";")
-    #print("locked file list:", lockedfilelist)
-    #if local_name in lockedfilelist:
-        #print("\nThe requested file is currently using by others, please try again later!!!\n")
-        #return
+
+    #
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((MAINSERVERHOST, MAINSERVERPORT))
         sock.sendall(bytes("lockfile:"+local_name+"\n", "utf-8"))
+
+    #
     try:
         li = ftp.nlst()
         print("file slist : ", li)
         print("file name: ",local_name)
+
+        #
         if local_name in li:
+
             print("\n\n-------Begin of current content------\n")
             ftp.retrlines("RETR " + local_name, tests.fileLinePrinting)
             print("\n-------EOF------\n\n")
+
+            #
             newcontent = input("---------Enter content to append in the file\n------")
             file = open(local_name, 'a')
             file.write(newcontent)
             file.close()
             file1 = open(local_name, 'rb')
             ftp.storbinary('STOR ' + local_name, file1)
+
             file1.close()
+
+            #
             for ser in childServ:
                 fileChildServ = open(local_name, 'rb')
                 ser.storbinary('STOR ' + local_name, fileChildServ)
                 fileChildServ.close()
+
             print("-------File has updated successfully------\n\n")
+
+        #
         else:
             try:
                 print("\n-------File uploading started------")
@@ -470,9 +470,13 @@ def write(ftp, childServ, MAINSERVERHOST, MAINSERVERPORT):
                 newcontent = input("---------Enter content to write in the file\n------")
                 file.write(newcontent)
                 file.close()
+
+            #
             except Exception as E:
                 print(E)
                 return
+
+            #
             try:
                 file1 = open(local_name, 'rb')
                 ftp.storbinary('STOR ' + local_name, file1)  # send the file
@@ -484,10 +488,16 @@ def write(ftp, childServ, MAINSERVERHOST, MAINSERVERPORT):
                     ser.storbinary('STOR ' + local_name, fileChildServ)
                     fileChildServ.close()
                 print("-------File has uploaded successfully------\n\n")
+
+            #
             except Exception as E:
                 print(E)
+
+    #
     except Exception as E:
         print(E)
+
+    #
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((MAINSERVERHOST, MAINSERVERPORT))
         sock.sendall(bytes("unlockfile:"+local_name+"\n", "utf-8"))
@@ -499,8 +509,7 @@ def update(ftp, childServ):
 
     # encrypt local_name
     sedfs_name = input("Enter SEDFS file path to download\n >> ")
-    enc_sedfs_name = bytes(sedfs_name)
-    enc_sedfs_name = str(CIPHER.encrypt(pad(enc_sedfs_name, AES.block_size)))
+    enc_sedfs_name = doEncrypt(sedfs_name)
 
     #
     try:
@@ -509,7 +518,6 @@ def update(ftp, childServ):
         print("\n\n-------Begin of current content------\n")
         ftp.retrlines("RETR " + enc_sedfs_name, tests.fileLinePrinting)
         print("\n-------EOF------\n\n")
-
 
         newcontent = input("---------Enter content to append in the file\n------")
 
@@ -524,7 +532,7 @@ def update(ftp, childServ):
                 plaintext = fo.read()
 
             # ENCRYPT ALL the file text
-            enc_text = CIPHER.encrypt(pad(plaintext, AES.block_size))
+            enc_text = doEncrypt(plaintext).encode()
 
             # Make encryted text as ".enc"
             with open(sedfs_name + ".enc", 'wb') as fo:
@@ -559,8 +567,7 @@ def read(ftp):
 
     # encrypt local_name
     sedfs_name = input("Enter SEDFS file path to download\n >> ")
-    sedfs_name = bytes(sedfs_name)
-    sedfs_name = str(CIPHER.encrypt(pad(sedfs_name, AES.block_size)))
+    sedfs_name = doEncrypt(sedfs_name)
 
     try:
         print("\n\n-------Begin------\n")
@@ -590,17 +597,35 @@ def go_back(ftp, childServ):
 # encryption
 #######################################################################################
 def doEncrypt(content):
-    #con = CIPHER.encrypt(pad(bytes(content, "utf-8"), AES.block_size))
-    #result = b64encode(con).decode("utf-8")
-    return fernet.encrypt(content.encode()).decode("utf-8")
+
+    # assuming content is string
+    # convert to bytes
+    data = bytes(content, 'utf-8')
+
+    # pad then encrypt data
+    msg = cipher.encrypt(pad(data, BLOCK_SIZE))
+
+    # returns string, (convert from hex)
+    return msg.hex()
 
 
 #######################################################################################
 # decryption
 #######################################################################################
 def doDecrypt(content):
-    #result = DECRYPTCIPHER.decrypt(b64decode(content.encode("utf-8"))).decode("utf-8")
-    return fernet.decrypt(bytes(content,"utf-8")).decode()
+
+    # assuming content is string
+    # change to hex
+    data = bytes.fromhex(content)
+
+    # decrypt data
+    plain_text = decipher.decrypt(data)
+
+    # unpad data
+    msg_dec = unpad(plain_text, BLOCK_SIZE)
+
+    # return string
+    return msg_dec.decode(encoding="utf-8")
 
 #######################################################################################
 # needed for error handling
