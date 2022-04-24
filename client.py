@@ -1,7 +1,6 @@
 from ftplib import FTP
 import socket
-from Crypto.Cipher import AES
-from . import client_functions
+import client_functions
 
 # Global Variables
 ServerPort = 50000  # server port
@@ -14,7 +13,7 @@ username = ""
 
 # MainServer details
 MAINSERVERHOST = input("ENTER MAIN SERVER IP ADDRESS:\n >>")
-MAINSERVERPORT = input("ENTER MAIN SERVER PORT NUMBER:\n >>")
+MAINSERVERPORT = int(input("ENTER MAIN SERVER PORT NUMBER:\n >>"))
 
 #######################################################################################
 # Prompts user for a server IP
@@ -30,7 +29,8 @@ def connect_to_server():
     # find an intial server connection
     while 1:
         print("\nInput SEDFS Server IPv4 Address ('quit' to exit)\n >> ", end='')
-        serverIP = input().strip()
+        #serverIP = input().strip()
+        serverIP = "10.211.55.5"
 
         if serverIP in quit:
             print("No connection made. Goodbye.")
@@ -49,8 +49,10 @@ def connect_to_server():
     while True:
 
         # Get Username and Password
-        username = input("\nPlease enter username:\n >> ")
-        password = input("\nPlease enter password:\n >> ")
+        #username = input("\nPlease enter username:\n >> ")
+        username = "user"
+        #password = input("\nPlease enter password:\n >> ")
+        password = "12345"
 
         # attempt login
         try:
@@ -124,9 +126,13 @@ if __name__ == '__main__':
                 except Exception as e:
                     print(" << ERROR")
 
+            # Upload Files
+            elif clientRequest == "upload" or clientRequest == "upl":
+                client_functions.uploadlocalfiles(ftp, childSer)
+            
             # Write
             elif clientRequest == "write" or clientRequest == "w":
-                client_functions.write(ftp, childSer)
+                client_functions.write(ftp, childSer, MAINSERVERHOST, MAINSERVERPORT)
 
             # read
             elif clientRequest == "read" or clientRequest == "r":
@@ -161,7 +167,7 @@ if __name__ == '__main__':
 
             # Delete
             elif clientRequest == "d" or clientRequest == "delete":
-                client_functions.delete(ftp, childSer)
+                client_functions.delete(ftp, childSer, MAINSERVERHOST, MAINSERVERPORT)
 
             # List
             elif clientRequest == "l" or clientRequest == "list":
