@@ -5,7 +5,7 @@ import socket
 # Get free socket
 sock = socket.socket()
 sock.bind(('', 0))
-PORT = sock.getsockname()[1]
+PORT = int(sock.getsockname()[1])
 
 # Get running IP
 HOST = sock.getsockname()[1]
@@ -83,23 +83,19 @@ class UserHandler(socketserver.BaseRequestHandler):
             #
             if data['filename'] in filedata:
                 result = filedata[data['filename']]
-            print(result)
-            jsData = json.dumps(result)
-
-            #
-            self.request.sendall(bytes(jsData, "utf-8"))
+                jsData = json.dumps(result)
+                self.request.sendall(bytes(jsData, "utf-8"))
+            else:
+                self.request.sendall(bytes("NONE", "utf-8"))
 
         #
         if "insertPermissions" in format(self.data):
-            print(json.loads(self.data))
             data = json.loads(self.data)
             file = open("configuration files/permissions.json")
             filedata = json.load(file)
 
             #
             if data['fileDetails']['name'] in filedata:
-                print("temp")
-                print(filedata[data['fileDetails']['name']]['users'])
                 temp = filedata[data['fileDetails']['name']]['users']
                 temp[data['fileDetails']['users']['name']] = data['fileDetails']['users']['per']
                 filedata[data['fileDetails']['name']] = {"name" : data['fileDetails']['name'], "owner": filedata[data['fileDetails']['name']]['owner'], "users":  temp}
