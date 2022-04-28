@@ -126,6 +126,24 @@ class UserHandler(socketserver.BaseRequestHandler):
 
             #
             self.request.sendall(bytes(str("200"), "utf-8"))
+            
+        if "updatePermissions" in format(self.data):
+            data = json.loads(self.data)
+            file = open("configuration files/permissions.json")
+            filedata = json.load(file)
+
+            #
+            if data['filename'] in filedata:
+                temp = filedata[data['filename']]
+                temp['name'] =  data['newfilename']
+                filedata[data['newfilename']] = temp
+                del filedata[data['oldfilename']]
+
+            with open("configuration files/permissions.json", "w") as file1:
+                json.dump(filedata, file1)
+
+            #
+            self.request.sendall(bytes(str("200"), "utf-8"))
 
 
 if __name__ == "__main__":
