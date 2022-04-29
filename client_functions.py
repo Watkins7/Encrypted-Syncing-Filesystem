@@ -6,10 +6,10 @@ import io
 from Crypto.Cipher import AES
 from base64 import b64encode, b64decode
 from cryptography.fernet import Fernet
-BLOCK_SIZE = 32
 from Crypto.Util.Padding import pad, unpad
 import codecs
 
+BLOCK_SIZE = 32
 key = 'abcdefghijklmnop'.encode()
 ciphers = AES.new(key, AES.MODE_ECB)
 decipher = AES.new(key, AES.MODE_ECB)
@@ -20,12 +20,13 @@ listOfYes = ["yes", "y", "YES", "Y"]
 listOfNo = ["no", "n", "NO", "N"]
 is_file = ["F", "FILE", "f", "file", ]
 is_directory = ["D", "DIRECTORY", "d", "directory"]
-KEY = bytes("0123456789abcdef", "utf-8")
-IV = bytes(16)
-FERNET_KEY = b'N8AcL6QxLj8UlcZvCnC5Fe-o6kOiebaGeF5gb1Qzwqo='
-CIPHER = AES.new(KEY, AES.MODE_CBC, IV)
-DECRYPTCIPHER = AES.new(KEY, AES.MODE_CBC, CIPHER.iv)
-fernet = Fernet(FERNET_KEY)
+
+# crypto variables
+BLOCK_SIZE = 32
+KEY = "0123456789abcdef".encode()
+cipher = AES.new(KEY, AES.MODE_ECB)
+decipher = AES.new(KEY, AES.MODE_ECB)
+
 
 #######################################################################################
 # Display Help Menu
@@ -93,10 +94,10 @@ def create_blank_file_or_directory(childServ, ftp, username, MAINSERVERHOST, MAI
         client_file = input()
 
         # encrypt file name
-        client_file = doEncrypt(client_file)
+        enc_client_file = doEncrypt(client_file)
         print(client_file)
 
-        command = 'STOR ' + client_file
+        command = 'STOR ' + enc_client_file
 
         # create file for all servers
         try:
@@ -107,7 +108,11 @@ def create_blank_file_or_directory(childServ, ftp, username, MAINSERVERHOST, MAI
                 ser.storbinary(command, io.BytesIO(b''))
 
             # ?????????????????
-            createPermission("insert", doDecrypt(client_file), username, MAINSERVERHOST, MAINSERVERPORT)
+            try:
+                createPermission("insert", doEncrypt(client_file), username, MAINSERVERHOST, MAINSERVERPORT)
+            except Exception as E:
+                print("Failed to create permissions")
+                print(E)
 
         except Exception as e:
             print("------FAILED: File/Directory could not be made----------\n")
@@ -323,7 +328,6 @@ def rename(ftp, childServ, MAINSERVERHOST, MAINSERVERPORT):
     # encrypt oldname
     enc_old_name = doEncrypt(old_name)
     
-
     # encrypt newname
     enc_new_name = doEncrypt(new_name)
 
@@ -469,6 +473,9 @@ def uploadlocalfiles(ftp, childServ, username, MAINSERVERHOST, MAINSERVERPORT):
     # try to send ".enc" file
     try:
 
+        # encrypt local_name
+        enc_local_name = doEncrypt(local_name)
+
         # open encrypt file
         file_to_send = open(enc_local_name, 'rb')
 
@@ -492,48 +499,53 @@ def uploadlocalfiles(ftp, childServ, username, MAINSERVERHOST, MAINSERVERPORT):
 #######################################################################################
 # write to SEDFS
 #######################################################################################
+
 def write(ftp, childServ, username, MAINSERVERHOST, MAINSERVERPORT):
+    
     local_name = input("Enter Local file path to write\n >> ")
     enc_local_name = doEncrypt(local_name)
     getper = getPermission(local_name, username, MAINSERVERHOST, MAINSERVERPORT)
     if getper != "owner" and getper != "RW" and getper!="W":
         print("You don't have enough rights to  write for the selected file")
         return
-    # Create a socket (SOCK_STREAM means a TCP socket)
-    #with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        # Connect to server and send data
-        #sock.connect((MAINSERVERHOST, MAINSERVERPORT))
-        #sock.sendall(bytes("getlockedfiles"+ "\n", "utf-8"))
-        # Receive users data from the server and shut down
-        #received = str(sock.recv(1024), "utf-8")
-    #lockedfilelist = received.split(";")
-    #print("locked file list:", lockedfilelist)
-    #if local_name in lockedfilelist:
-        #print("\nThe requested file is currently using by others, please try again later!!!\n")
-        #return
+
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((MAINSERVERHOST, MAINSERVERPORT))
         sock.sendall(bytes("lockfile:"+local_name+"\n", "utf-8"))
+
+    #
     try:
         li = ftp.nlst()
         print("file name: ",local_name)
+
+
         if enc_local_name in li:
+
             print("\n\n-------Begin of current content------\n")
             ftp.retrlines("RETR " + enc_local_name, fileLinePrinting)
             print("\n-------EOF------\n\n")
+
+            #
             newcontent = input("---------Enter content to append in the file\n------")
             enc_newcontent = doEncrypt(newcontent)
             file = open(enc_local_name, 'a')
             file.write(enc_newcontent)
             file.close()
+
             file1 = open(enc_local_name, 'rb')
             ftp.storbinary('STOR ' + enc_local_name, file1)
+
             file1.close()
+
+            #
             for ser in childServ:
                 fileChildServ = open(enc_local_name, 'rb')
                 ser.storbinary('STOR ' + enc_local_name, fileChildServ)
                 fileChildServ.close()
+
             print("-------File has updated successfully------\n\n")
+
+        #
         else:
             try:
                 print("\n-------File uploading started------")
@@ -541,9 +553,13 @@ def write(ftp, childServ, username, MAINSERVERHOST, MAINSERVERPORT):
                 newcontent = input("---------Enter content to write in the file\n------")
                 file.write(enc_newcontent)
                 file.close()
+
+            #
             except Exception as E:
                 print(E)
                 return
+
+            #
             try:
                 file1 = open(enc_newcontent, 'rb')
                 ftp.storbinary('STOR ' + enc_local_name, file1)  # send the file
@@ -556,10 +572,16 @@ def write(ftp, childServ, username, MAINSERVERHOST, MAINSERVERPORT):
                     fileChildServ.close()
                 createPermission("insert", local_name, username, MAINSERVERHOST, MAINSERVERPORT)
                 print("-------File has uploaded successfully------\n\n")
+
+            #
             except Exception as E:
                 print(E)
+
+    #
     except Exception as E:
         print(E)
+
+    #
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((MAINSERVERHOST, MAINSERVERPORT))
         sock.sendall(bytes("unlockfile:"+local_name+"\n", "utf-8"))
@@ -572,22 +594,52 @@ def update(ftp, username, MAINSERVERHOST, MAINSERVERPORT, childServ):
     # encrypt local_name
     sedfs_name = input("Enter SEDFS file path to download\n >> ")
     enc_sedfs_name = doEncrypt(sedfs_name)
+
     getper = getPermission(sedfs_name, username, MAINSERVERHOST, MAINSERVERPORT)
     if getper != "owner" and getper != "RW" and getper!="W":
         print("You don't have enough rights to  write for the selected file")
         return
+
     try:
         print("\n\n-------Begin of current content------\n")
         ftp.retrlines("RETR " + enc_sedfs_name, fileLinePrinting)
         print("\n-------EOF------\n\n")
+
         newcontent = input("---------Enter content to append in the file\n------")
         enc_newcontent = doEncrypt(newcontent)
         file = open(enc_sedfs_name, 'a')
         file.write(enc_newcontent)
         file.close()
+
+        # encrypt file
+        try:
+            # open file
+            with open(sedfs_name, 'rb') as fo:
+                plaintext = fo.read()
+
+            # ENCRYPT ALL the file text
+            enc_text = doEncrypt(plaintext).encode()
+
+            # Make encryted text as ".enc"
+            with open(sedfs_name + ".enc", 'wb') as fo:
+                fo.write(enc_text)
+                fo.close
+
+        except Exception as E:
+            print(E)
+            return
+
+        # send encrypted file to parent server
+        file_to_send = open(enc_sedfs_name, 'rb')
+        ftp.storbinary('STOR ' + enc_sedfs_name, file_to_send)
+        file_to_send.close()
+
+        # send encrypted file to all servers
+        
         file1 = open(enc_sedfs_name, 'rb')
         ftp.storbinary('STOR ' + enc_sedfs_name, file1)
         file1.close()
+        
         for ser in childServ:
             fileChildServ = open(enc_sedfs_name, 'rb')
             ser.storbinary('STOR ' + enc_sedfs_name, fileChildServ)
@@ -606,11 +658,12 @@ def read(ftp, username, MAINSERVERHOST, MAINSERVERPORT):
     # encrypt local_name
     sedfs_name = input("Enter SEDFS file path to download\n >> ")
     enc_sedfs_name = doEncrypt(sedfs_name)
+    
     getper = getPermission(sedfs_name, username, MAINSERVERHOST, MAINSERVERPORT)
     if getper != "owner" and getper != "RW" and getper!="W" and getper!="R":
         print("You don't have enough rights to  write for the selected file")
         return
-
+      
     try:
         print("\n\n-------Begin------\n")
         ftp.retrlines("RETR " + enc_sedfs_name, fileLinePrinting)
@@ -643,8 +696,16 @@ def go_back(ftp, childServ):
 # encryption
 #######################################################################################
 def doEncrypt(content):
-    #con = CIPHER.encrypt(pad(bytes(content, "utf-8"), AES.block_size))
-    #result = b64encode(con).decode("utf-8")
+
+    # assuming content is string
+    # convert to bytes
+    data = bytes(content, 'utf-8')
+
+    # pad then encrypt data
+    msg = cipher.encrypt(pad(data, BLOCK_SIZE))
+
+    # returns string, (convert from hex)
+    return msg.hex()
 
     data = bytes(content, 'utf-8')
     msg = ciphers.encrypt(pad(data, BLOCK_SIZE))
@@ -656,11 +717,17 @@ def doEncrypt(content):
 # decryption
 #######################################################################################
 def doDecrypt(content):
-    #result = DECRYPTCIPHER.decrypt(b64decode(content.encode("utf-8"))).decode("utf-8")
-    content = content.encode("utf-8")
-    data = codecs.decode(content, 'hex')
+
+    # assuming content is string
+    # change to hex
+    data = bytes.fromhex(content)
+
+    # decrypt data
     plain_text = decipher.decrypt(data)
+
+    # unpad data
     msg_dec = unpad(plain_text, BLOCK_SIZE)
+
     return msg_dec.decode(encoding="utf-8")
 
 #######################################################################################

@@ -2,13 +2,8 @@ import socketserver
 import json
 import socket
 
-# Get free socket
-sock = socket.socket()
-sock.bind(('', 0))
-PORT = int(sock.getsockname()[1])
-
 # Get running IP
-HOST = sock.getsockname()[1]
+HOST = socket.gethostbyname(socket.gethostname())
 
 serverList = []
 global lockedFileslist
@@ -149,6 +144,13 @@ class UserHandler(socketserver.BaseRequestHandler):
 if __name__ == "__main__":
 
     # Start Server
-    with socketserver.TCPServer((HOST, PORT), UserHandler) as server:
-        print("main server started on ", HOST, "-", PORT)
+    with socketserver.TCPServer((HOST, 0), UserHandler) as server:
+
+        # get IP and PORT
+        ip, port = server.server_address
+
+        # Display IP and Port
+        print("main server started on ", ip, "-", port)
+
+        # Serve forever
         server.serve_forever()

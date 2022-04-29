@@ -30,7 +30,7 @@ def connect_to_server():
     while 1:
         print("\nInput SEDFS Server IPv4 Address ('quit' to exit)\n >> ", end='')
         #serverIP = input().strip()
-        serverIP = "10.211.55.5"
+        serverIP = "192.168.56.1"
 
         if serverIP in quit:
             print("No connection made. Goodbye.")
@@ -105,7 +105,6 @@ if __name__ == '__main__':
 
         # display menu
         # record current working directory
-        help(ftp)
         currentDirectory = ftp.pwd()
 
         # looping program

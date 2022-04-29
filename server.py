@@ -29,7 +29,7 @@ serverLog.setLevel(logging.DEBUG)
 known_servers = []
 listOfNo = ["no", "n", "NO", "N"]
 MAINSERVERHOST = input("ENTER MAIN SERVER IP ADDRESS:\n >>")
-MAINSEREVERPORT = input("ENTER MAIN SERVER PORT NUMBER:\n >>")
+MAINSEREVERPORT = int(input("ENTER MAIN SERVER PORT NUMBER:\n >>"))
 
 # Server Class
 class SEDFS_server(FTPServer):
