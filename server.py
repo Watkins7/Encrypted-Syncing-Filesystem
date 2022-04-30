@@ -8,7 +8,6 @@ import socket
 import logging.config
 import sys
 import os
-from datetime import datetime
 
 #################################################################################
 # Global Logger
@@ -48,9 +47,11 @@ class SEDFS_handler(FTPHandler):
 
     # child handler init
     def __init__(self, conn, server, ioloop):
+
         # Log handler event
-        print(datetime.now().strftime("DATE: %Y:%m:%d\tTIME: %H:%M:%S\tEVENT: "), end="")
-        serverLog.info("[+] SEDFS Handle Started")
+        ip = str(conn.getpeername())
+        logevent = "[+] TCP Connection Detected: " + ip
+        serverLog.info(logevent)
 
         # parent handler init
         FTPHandler.__init__(self, conn, server)
@@ -91,38 +92,12 @@ def load_users(authorizer):
         try:
             # USERNAME, PASSWORD, HOME, PERMISSIONS
             authorizer.add_user(user[0], user[1], user[2], user[3])
-            serverLog.info("[+] SEDFS User added: %s" % user[0])
+            serverLog.info("[+] SEDFS SERVER User added: %s" % user[0])
 
         except Exception as E:
             print(E)
 
     return
-
-"""
-# cysnc lib not needed for this implementation
-def server_sync():
-    while 1:
-        print("Enter IP of server to sync\n >> ", end='')
-        serverIP = input().strip()
-        full_remote_path = input("Please enter the FULL REMOTE path of the directory\n >> ").strip()
-
-        current_directory = os.getcwd()
-        current_directory.replace("\\", "/")
-        current_directory = current_directory + "/SEDFS"
-        full_string = "csync " + current_directory + " sftp://csync@" + serverIP + ":50001" + full_remote_path
-
-        print("Attempting csync...", full_string)
-
-        try:
-            os.system(full_string)
-            known_servers.append(serverIP)
-        except Exception as E:
-            print(E)
-
-        ans = input("Do you wish to continue?\n >> ")
-        if ans in listOfNo:
-            break
-"""
 
 # File Server Setup Function
 def SEDFS_setup():
@@ -139,7 +114,6 @@ def SEDFS_setup():
         os.mkdir("SEDFS")
 
     # LOAD username, password, home directory, permissions
-    authorizer.add_user('sudo', 'password', './SEDFS', perm='elradfmwMT')
     load_users(authorizer)
 
     # Instantiate FTP handler class
@@ -162,7 +136,6 @@ def SEDFS_setup():
 
     # start ftp server
     server.serve_forever()
-
 
 if __name__ == '__main__':
     SEDFS_setup()

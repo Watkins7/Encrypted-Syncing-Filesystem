@@ -29,8 +29,8 @@ def connect_to_server():
     # find an intial server connection
     while 1:
         print("\nInput SEDFS Server IPv4 Address ('quit' to exit)\n >> ", end='')
-        #serverIP = input().strip()
-        serverIP = "192.168.56.1"
+        serverIP = input().strip()
+        #serverIP = "192.168.56.1"
 
         if serverIP in quit:
             print("No connection made. Goodbye.")
@@ -49,10 +49,11 @@ def connect_to_server():
     while True:
 
         # Get Username and Password
-        #username = input("\nPlease enter username:\n >> ")
-        username = "user"
-        #password = input("\nPlease enter password:\n >> ")
-        password = "12345"
+        username = input("\nPlease enter username:\n >> ")
+        #username = "user"
+
+        password = input("\nPlease enter password:\n >> ")
+        #password = "12345"
 
         # attempt login
         try:
@@ -66,11 +67,13 @@ def connect_to_server():
                 ip = socket.gethostbyname(socket.gethostname())
                 sock.sendall(bytes("getip\n", "utf-8"))
                 received = str(sock.recv(1024), "utf-8")
+
+            #display all active servers
             activeservers = received.split(";")
             serverIps = activeservers
             print("\nCurrent active servers :",activeservers,"\n")
 
-            #
+            # for all servers, establish a connection
             for ips in serverIps:
                 if ips.strip() != serverIP.strip():
                     con = FTP()
@@ -79,7 +82,7 @@ def connect_to_server():
                     childServersList.append(con)
             break
 
-        #
+        # Print exceptions
         except Exception as e:
             print(e)
 
@@ -89,8 +92,11 @@ def connect_to_server():
         if response in listOfYes:
             return False
 
-    list_of_known_servers.append(serverIP)  # Append server information
-    return new_ftp, childServersList  # return FTP object
+    # Append server information
+    list_of_known_servers.append(serverIP)
+
+    # return FTP object
+    return new_ftp, childServersList
 
 #######################################################################################
 # main
