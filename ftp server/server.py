@@ -9,6 +9,9 @@ import logging.config
 import sys
 import os
 
+# Custom functions
+from ftp_functions import get_all_file_names
+
 #################################################################################
 # Global Logger
 #################################################################################
@@ -56,7 +59,37 @@ class SEDFS_handler(FTPHandler):
         # parent handler init
         FTPHandler.__init__(self, conn, server)
 
+        # CUSTOM FTP COMMANDS
+        self.proto_cmds.update(
+            {'SITE SENDALLFILES': dict(perm='r', auth=True, arg=True, path=False,
+                                  help='Sends MAIN a text file of all known files')
+             }
+        )
+
         return
+
+    # CUSTOM function to return all files
+    def ftp_SITE_SENDALLFILES(self, doesntmatter):
+
+        serverLog.info("[*] Mainserver requests list of all files")
+
+        #list_of_files = get_all_file_names("SEDFS")
+
+        # make a file of all the known files to send
+        #file_a = open("knownfiles.txt", "w")
+        #for i in list_of_files:
+            #file_a.write(i)
+
+        # close file
+        #file_a.close()
+
+        #super(SEDFS_handler, self).ftp_RETR("knownfiles.txt")
+
+        self.respond("tessstttttt")
+
+
+
+
 
 # Configuration function for loading users
 def load_users(authorizer):

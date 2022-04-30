@@ -3,6 +3,9 @@ import json
 import socket
 import logging.config
 import sys
+import time
+from ftplib import FTP
+from main_functions import list_of_all_files
 
 # Get running IP
 HOST = socket.gethostbyname(socket.gethostname())
@@ -50,8 +53,46 @@ class UserHandler(socketserver.BaseRequestHandler):
                 serverList.append(self.data.decode("utf-8").split(":")[1])
             self.request.sendall(bytes(';'.join(serverList) , "utf-8"))
 
+            # log new server to server list
             log_event = "Server " + str(len(serverList)) + " has stared on " + self.data.decode("utf-8").split(":")[1] + ":50000"
             serverLog.info(log_event)
+
+            time.sleep(1)
+            # check server's file list
+            try:
+
+                # connect to the new FTP server
+                ftp = FTP()
+                ftp.connect(str(self.data.decode("utf-8").split(":")[1]), 50000)
+
+                # sign in with "MAIN" account
+                ftp.login(user='main', passwd='12345')
+
+                # make a local file
+                localfile = open("knownfiles.txt", 'wb')
+
+                # request list of files
+                data = ftp.sendcmd("SITE SENDALLFILES idk")
+
+                # quit FTP
+                ftp.quit()
+
+                print(data.encode())
+
+                # get all the files on the permission server
+                permission_file_list = list_of_all_files("permissions.json")
+
+                # check files
+                all_lines = localfile.readlines()
+
+                # Look to see if every permission file is on the server
+                for i in permission_file_list:
+                    if i not in all_lines:
+                        print("Error ", i, " is not in the server")
+
+            except Exception as E:
+                serverLog.debug(E)
+
 
         # a server requests all of main's IPs
         if "getip" in format(self.data):
@@ -68,7 +109,7 @@ class UserHandler(socketserver.BaseRequestHandler):
         # returns userdata
         if "userdata" in format(self.data):
 
-            file = open("configuration files/userConfig.txt", mode='r')
+            file = open("userConfig.txt", mode='r')
             lines = file.readlines()
             data = ""
 
@@ -86,7 +127,7 @@ class UserHandler(socketserver.BaseRequestHandler):
             if filename not in lockedFileslist:
                 lockedFileslist.append(filename)
 
-            log_event = "[*] " + self.data, "has been locked"
+            log_event = "[*] " + str(self.data) + " has been locked"
             serverLog.info(log_event)
 
         # unlocks a file
@@ -95,13 +136,13 @@ class UserHandler(socketserver.BaseRequestHandler):
             while(filename in lockedFileslist):
                 lockedFileslist.remove(filename)
 
-            log_event = "[*] " + self.data, "has been unlocked"
+            log_event = "[*] " + str(self.data) + " has been unlocked"
             serverLog.info(log_event)
 
         # gets permission in the json file
         if "getPermissions" in format(self.data):
             data = json.loads(self.data)
-            file = open("configuration files/permissions.json")
+            file = open("permissions.json")
             filedata = json.load(file)
 
             # sends the requested information
@@ -115,7 +156,7 @@ class UserHandler(socketserver.BaseRequestHandler):
         # insert new permissions in the json file
         if "insertPermissions" in format(self.data):
             data = json.loads(self.data)
-            file = open("configuration files/permissions.json")
+            file = open("permissions.json")
             filedata = json.load(file)
 
             # ?????????
@@ -129,7 +170,7 @@ class UserHandler(socketserver.BaseRequestHandler):
                 filedata[data['fileDetails']['name']] =  {"name" : data['fileDetails']['name'], "owner": data['fileDetails']['owner'], "users":  {}}
 
             # ???????????
-            with open("configuration files/permissions.json", "w") as file1:
+            with open("permissions.json", "w") as file1:
                 json.dump(filedata, file1)
 
             # ???????????
@@ -138,32 +179,33 @@ class UserHandler(socketserver.BaseRequestHandler):
         # deletes a given permission in the json file
         if "delPermissions" in format(self.data):
             data = json.loads(self.data)
-            file = open("configuration files/permissions.json")
+            file = open("permissions.json")
             filedata = json.load(file)
 
             # ?????????????
             if data['filename'] in filedata:
                 del filedata[data['filename']]
 
-            with open("configuration files/permissions.json", "w") as file1:
+            with open("permissions.json", "w") as file1:
                 json.dump(filedata, file1)
 
-            #
+            # ??????????????
             self.request.sendall(bytes(str("200"), "utf-8"))
 
+        # ??????????????????
         if "updatePermissions" in format(self.data):
             data = json.loads(self.data)
-            file = open("configuration files/permissions.json")
+            file = open("permissions.json")
             filedata = json.load(file)
 
-            #
+            # ??????????????
             if data['filename'] in filedata:
                 temp = filedata[data['filename']]
                 temp['name'] =  data['newfilename']
                 filedata[data['newfilename']] = temp
                 del filedata[data['oldfilename']]
 
-            with open("configuration files/permissions.json", "w") as file1:
+            with open("permissions.json", "w") as file1:
                 json.dump(filedata, file1)
 
             # ????????????????
