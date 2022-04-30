@@ -96,7 +96,7 @@ def connect_to_server():
     list_of_known_servers.append(serverIP)
 
     # return FTP object
-    return new_ftp, childServersList
+    return new_ftp, childServersList, username
 
 #######################################################################################
 # main
@@ -104,7 +104,7 @@ def connect_to_server():
 if __name__ == '__main__':
 
     #
-    ftp, childSer = connect_to_server()
+    ftp, childSer, username = connect_to_server()
 
     # if there is a connection
     if ftp:
@@ -133,30 +133,30 @@ if __name__ == '__main__':
 
             # Upload Files
             elif clientRequest == "upload" or clientRequest == "upl":
-                client_functions.uploadlocalfiles(ftp, childSer)
+                client_functions.uploadlocalfiles(ftp, childSer, username, MAINSERVERHOST, MAINSERVERPORT)
             
             # Write
             elif clientRequest == "write" or clientRequest == "w":
-                client_functions.write(ftp, childSer, MAINSERVERHOST, MAINSERVERPORT)
+                client_functions.write(ftp, childSer, username, MAINSERVERHOST, MAINSERVERPORT)
 
             # read
             elif clientRequest == "read" or clientRequest == "r":
-                client_functions.read(ftp)
+                client_functions.read(ftp, username, MAINSERVERHOST, MAINSERVERPORT)
 
             # update 
             elif clientRequest == "update" or clientRequest == "up":
-                client_functions.update(ftp, childSer)
+                client_functions.update(ftp, username, MAINSERVERHOST, MAINSERVERPORT, childSer)
 
             elif clientRequest == "test" or clientRequest == "test":
                 client_functions.tests.test(ftp, childSer, MAINSERVERHOST, MAINSERVERPORT)
 
             # read
             elif clientRequest == "rename" or clientRequest == "u":
-                client_functions.rename(ftp, childSer)
+                client_functions.rename(ftp, childSer, MAINSERVERHOST, MAINSERVERPORT)
 
             # change permissions
             elif clientRequest == "permissions" or clientRequest == "p":
-                client_functions.change_permissions(ftp, childSer)
+                client_functions.change_permissions(username, MAINSERVERHOST, MAINSERVERPORT)
 
             # Navigate
             elif clientRequest == "n" or clientRequest == "navigate":
@@ -172,7 +172,7 @@ if __name__ == '__main__':
 
             # Delete
             elif clientRequest == "d" or clientRequest == "delete":
-                client_functions.delete(ftp, childSer, MAINSERVERHOST, MAINSERVERPORT)
+                client_functions.delete(ftp, childSer, username, MAINSERVERHOST, MAINSERVERPORT)
 
             # List
             elif clientRequest == "l" or clientRequest == "list":
