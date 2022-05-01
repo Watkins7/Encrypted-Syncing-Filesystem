@@ -1,6 +1,7 @@
 from ftplib import FTP
 import socket
 import client_functions
+import tests
 
 # Global Variables
 ServerPort = 50000  # server port
@@ -9,7 +10,7 @@ serverIps = []
 quit = ["QUIT", "Q", "quit", "q", "exit", "EXIT", "E", "e"]
 listOfYes = ["yes", "y", "YES", "Y"]
 list_of_known_servers = []
-USERNAME = ""
+username = ""
 
 # MainServer details
 MAINSERVERHOST = input("ENTER MAIN SERVER IP ADDRESS:\n >>")
@@ -29,8 +30,8 @@ def connect_to_server():
     # find an intial server connection
     while 1:
         print("\nInput SEDFS Server IPv4 Address ('quit' to exit)\n >> ", end='')
-        #serverIP = input().strip()
-        serverIP = "192.168.56.1"
+        serverIP = input().strip()
+        #serverIP = "192.168.56.1"
 
         if serverIP in quit:
             print("No connection made. Goodbye.")
@@ -48,15 +49,16 @@ def connect_to_server():
     # Loop login attempt
     while True:
 
-        # Get USERNAME and Password
-        USERNAME = input("\nPlease enter USERNAME:\n >> ")
-        #USERNAME = "bob"
+        # Get Username and Password
+        username = input("\nPlease enter username:\n >> ")
+        #username = "user"
+
         password = input("\nPlease enter password:\n >> ")
-        #password = "1234"
+        #password = "12345"
 
         # attempt login
         try:
-            new_ftp.login(USERNAME, password)
+            new_ftp.login(username, password)
             print(" << Login Success!")
             new_ftp.set_pasv(True)  # Set to passive mode if time out
 
@@ -66,20 +68,22 @@ def connect_to_server():
                 ip = socket.gethostbyname(socket.gethostname())
                 sock.sendall(bytes("getip\n", "utf-8"))
                 received = str(sock.recv(1024), "utf-8")
+
+            #display all active servers
             activeservers = received.split(";")
             serverIps = activeservers
             print("\nCurrent active servers :",activeservers,"\n")
 
-            #
+            # for all servers, establish a connection
             for ips in serverIps:
                 if ips.strip() != serverIP.strip():
                     con = FTP()
                     con.connect(ips.strip(), ServerPort, timeout=5)
-                    con.login(USERNAME, password)
+                    con.login(username, password)
                     childServersList.append(con)
             break
 
-        #
+        # Print exceptions
         except Exception as e:
             print(e)
 
@@ -89,8 +93,11 @@ def connect_to_server():
         if response in listOfYes:
             return False
 
-    list_of_known_servers.append(serverIP)  # Append server information
-    return new_ftp, childServersList, USERNAME  # return FTP object
+    # Append server information
+    list_of_known_servers.append(serverIP)
+
+    # return FTP object
+    return new_ftp, childServersList, username
 
 #######################################################################################
 # main
@@ -98,7 +105,7 @@ def connect_to_server():
 if __name__ == '__main__':
 
     #
-    ftp, childSer, USERNAME = connect_to_server()
+    ftp, childSer, username = connect_to_server()
 
     # if there is a connection
     if ftp:
@@ -109,7 +116,8 @@ if __name__ == '__main__':
 
         # looping program
         while 1:
-            print("\n****** Current Directory : %s *******\n" % ftp.pwd())
+
+            print("\n****** Current Directory: /" + currentDirectory + " *******\n")
             print("Enter a command to perform operation or type 'h' to see the menu >> ", end='')
 
             # get client request
@@ -118,7 +126,7 @@ if __name__ == '__main__':
             # Create file/directory
             if clientRequest == "create" or clientRequest == "c":
                 try:
-                    client_functions.create_blank_file_or_directory(childSer, ftp, USERNAME, MAINSERVERHOST, MAINSERVERPORT)
+                    client_functions.create_blank_file_or_directory(childSer, ftp, username, MAINSERVERHOST, MAINSERVERPORT)
                     print(" << SUCCESS")
 
                 except Exception as e:
@@ -126,22 +134,22 @@ if __name__ == '__main__':
 
             # Upload Files
             elif clientRequest == "upload" or clientRequest == "upl":
-                client_functions.uploadlocalfiles(ftp, childSer, USERNAME, MAINSERVERHOST, MAINSERVERPORT)
+                client_functions.uploadlocalfiles(ftp, childSer, username, MAINSERVERHOST, MAINSERVERPORT)
             
             # Write
             elif clientRequest == "write" or clientRequest == "w":
-                client_functions.write(ftp, childSer, USERNAME, MAINSERVERHOST, MAINSERVERPORT)
+                client_functions.write(ftp, childSer, username, MAINSERVERHOST, MAINSERVERPORT)
 
             # read
             elif clientRequest == "read" or clientRequest == "r":
-                client_functions.read(ftp, USERNAME, MAINSERVERHOST, MAINSERVERPORT)
+                client_functions.read(ftp, username, MAINSERVERHOST, MAINSERVERPORT)
 
             # update 
             elif clientRequest == "update" or clientRequest == "up":
-                client_functions.update(ftp, USERNAME, MAINSERVERHOST, MAINSERVERPORT, childSer)
+                client_functions.update(ftp, username, MAINSERVERHOST, MAINSERVERPORT, childSer)
 
             elif clientRequest == "test" or clientRequest == "test":
-                client_functions.tests.test(ftp, childSer, MAINSERVERHOST, MAINSERVERPORT)
+                tests.test(ftp, childSer, MAINSERVERHOST, MAINSERVERPORT)
 
             # read
             elif clientRequest == "rename" or clientRequest == "u":
@@ -149,11 +157,11 @@ if __name__ == '__main__':
 
             # change permissions
             elif clientRequest == "permissions" or clientRequest == "p":
-                client_functions.change_permissions(USERNAME, MAINSERVERHOST, MAINSERVERPORT)
+                client_functions.change_permissions(username, MAINSERVERHOST, MAINSERVERPORT)
 
             # Navigate
             elif clientRequest == "n" or clientRequest == "navigate":
-                client_functions.navigate(ftp, childSer)
+                currentDirectory = client_functions.navigate(ftp, childSer, currentDirectory)
 
             # Navigate
             elif clientRequest == "k" or clientRequest == "chown":
@@ -162,10 +170,11 @@ if __name__ == '__main__':
             # Back 1 Directory
             elif clientRequest == "b" or clientRequest == "back":
                 client_functions.go_back(ftp, childSer)
+                currentDirectory = ftp.pwd()
 
             # Delete
             elif clientRequest == "d" or clientRequest == "delete":
-                client_functions.delete(ftp, childSer, USERNAME, MAINSERVERHOST, MAINSERVERPORT)
+                client_functions.delete(ftp, childSer, username, MAINSERVERHOST, MAINSERVERPORT)
 
             # List
             elif clientRequest == "l" or clientRequest == "list":

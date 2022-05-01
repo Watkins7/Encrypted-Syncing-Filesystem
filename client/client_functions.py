@@ -1,13 +1,8 @@
 import os, shutil, socket, json
 from pathlib import Path
-from client import MAINSERVERHOST
-import tests
 import io
 from Crypto.Cipher import AES
-from base64 import b64encode, b64decode
-from cryptography.fernet import Fernet
 from Crypto.Util.Padding import pad, unpad
-import codecs
 
 BLOCK_SIZE = 32
 key = 'abcdefghijklmnop'.encode()
@@ -109,9 +104,9 @@ def create_blank_file_or_directory(childServ, ftp, username, MAINSERVERHOST, MAI
 
             # ?????????????????
             try:
-                createPermission("insert", doEncrypt(client_file), username, MAINSERVERHOST, MAINSERVERPORT)
+                createPermission("insert", enc_client_file, username, MAINSERVERHOST, MAINSERVERPORT)
             except Exception as E:
-                print("Failed to create permissions")
+                print("Failed to create FILE permissions")
                 print(E)
 
         except Exception as e:
@@ -140,6 +135,12 @@ def create_blank_file_or_directory(childServ, ftp, username, MAINSERVERHOST, MAI
                 ser.mkd(client_directory)
 
             print("-------Directory creation completed successfully--------\n")
+
+            try:
+                createPermission("insert", client_directory, username, MAINSERVERHOST, MAINSERVERPORT)
+            except Exception as E:
+                print("Failed to create DIRECTORY permissions")
+                print(E)
 
         except Exception as e:
             print(" << ERROR:", e)
@@ -298,7 +299,7 @@ def delete(ftp, childServ, username, MAINSERVERHOST, MAINSERVERPORT):
 #######################################################################################
 # navigate to new folder
 #######################################################################################
-def navigate(ftp, childServ):
+def navigate(ftp, childServ, current):
 
     new_path = input("Enter new path\n >> ")
 
@@ -312,9 +313,12 @@ def navigate(ftp, childServ):
             ser.cwd(enc_new_path)
 
         print("-------Directory changed succesfully--------\n")
+        return new_path
 
     except Exception as e:
         print(e)
+
+    return current
 
 #######################################################################################
 # rename file on all known servers
@@ -359,7 +363,10 @@ def ftp_list(ftp):
         print("\n\n-------Begin of List------\n")
         li = ftp.nlst()
         for i in li:
-            print(doDecrypt(i))
+            try:
+                print(doDecrypt(i))
+            except Exception as E:
+                print("ERROR, could not decrypt " + i)
         print("\n-------End of List------\n\n")
 
     except Exception as E:
@@ -501,90 +508,113 @@ def uploadlocalfiles(ftp, childServ, username, MAINSERVERHOST, MAINSERVERPORT):
 #######################################################################################
 
 def write(ftp, childServ, username, MAINSERVERHOST, MAINSERVERPORT):
-    
+
+    # get the file name and encrypt it
     local_name = input("Enter Local file path to write\n >> ")
     enc_local_name = doEncrypt(local_name)
-    getper = getPermission(local_name, username, MAINSERVERHOST, MAINSERVERPORT)
-    if getper != "owner" and getper != "RW" and getper!="W":
-        print("You don't have enough rights to  write for the selected file")
-        return
 
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.connect((MAINSERVERHOST, MAINSERVERPORT))
-        sock.sendall(bytes("lockfile:"+local_name+"\n", "utf-8"))
+    # Get contents of file to encrypt
+    newcontent = input("---------Enter content to append in the file\n------")
+    enc_newcontent = doEncrypt(newcontent)
 
-    #
-    try:
-        li = ftp.nlst()
-        print("file name: ",local_name)
+    # get list all the files
+    filenames = ftp.nlst()
 
+    # if the encypted name is in the listed files
+    if enc_local_name in filenames:
 
-        if enc_local_name in li:
+        # check if permissions are valid
+        getper = getPermission(local_name, username, MAINSERVERHOST, MAINSERVERPORT)
+        if getper != "owner" and getper != "RW" and getper != "W":
+            print("You don't have enough rights to  write for the selected file")
+            return
 
-            print("\n\n-------Begin of current content------\n")
-            ftp.retrlines("RETR " + enc_local_name, fileLinePrinting)
-            print("\n-------EOF------\n\n")
+        print("File found on server.")
 
-            #
-            newcontent = input("---------Enter content to append in the file\n------")
-            enc_newcontent = doEncrypt(newcontent)
-            file = open(enc_local_name, 'a')
-            file.write(enc_newcontent)
-            file.close()
+        # lock the file on main server
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.connect((MAINSERVERHOST, MAINSERVERPORT))
+            sock.sendall(bytes("lockfile:" + enc_local_name + "\n", "utf-8"))
 
+        # get the specfic file from the server
+        file = open(enc_local_name, 'a')
+        ftp.retrbinary('RETR %s' % enc_local_name, file.write)
+        file.close()
+
+        # Show what it is in the file
+        print("\n\n-------Begin of current content------\n")
+        a_file = open(enc_local_name)
+
+        # read encrypted file
+        file_contents = a_file.read()
+
+        # decrypt file
+        file_contents = doDecrypt(file_contents)
+
+        # print file
+        print(file_contents)
+
+        print("\n-------EOF------\n\n")
+
+        # append new content
+        a_file.write(enc_newcontent)
+        a_file.close()
+
+        # reopen appended file and send to MAIN FTP
+        file1 = open(enc_local_name, 'rb')
+        ftp.storbinary('STOR ' + enc_local_name, file1)
+        file1.close()
+
+        # SEND FILE to all other FTPs
+        for ser in childServ:
+            fileChildServ = open(enc_local_name, 'rb')
+            ser.storbinary('STOR ' + enc_local_name, fileChildServ)
+            fileChildServ.close()
+
+        print("-------File has updated successfully------\n\n")
+
+        # UNLOCK FILE
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.connect((MAINSERVERHOST, MAINSERVERPORT))
+            sock.sendall(bytes("unlockfile:"+local_name+"\n", "utf-8"))
+
+    # Else the file is not on the server
+    else:
+
+        # Make a new file
+        print("File not found on server, making new file")
+
+        file = open(enc_local_name, 'w')
+        file.write(enc_newcontent)
+        file.close()
+
+        print("\n-------File uploading started------")
+
+        # Try to store content
+        try:
+
+            # open file to send
             file1 = open(enc_local_name, 'rb')
-            ftp.storbinary('STOR ' + enc_local_name, file1)
 
+            # send the file
+            ftp.storbinary('STOR ' + enc_local_name, file1)
             file1.close()
 
-            #
+            print("-------File has uploaded to primary server----")
+            print("-------Writing Files in child servers---------")
             for ser in childServ:
                 fileChildServ = open(enc_local_name, 'rb')
                 ser.storbinary('STOR ' + enc_local_name, fileChildServ)
                 fileChildServ.close()
 
-            print("-------File has updated successfully------\n\n")
+            # send permissions to MAINSERVER
+            createPermission("insert", enc_local_name, username, MAINSERVERHOST, MAINSERVERPORT)
+            print("-------File has uploaded successfully------\n\n")
 
-        #
-        else:
-            try:
-                print("\n-------File uploading started------")
-                file = open(enc_local_name, 'w')
-                newcontent = input("---------Enter content to write in the file\n------")
-                file.write(enc_newcontent)
-                file.close()
+        except Exception as E:
+            print(E)
 
-            #
-            except Exception as E:
-                print(E)
-                return
 
-            #
-            try:
-                file1 = open(enc_newcontent, 'rb')
-                ftp.storbinary('STOR ' + enc_local_name, file1)  # send the file
-                file1.close()
-                print("-------File has uploaded to primary server----")
-                print("-------Writing Files in child servers---------")
-                for ser in childServ:
-                    fileChildServ = open(enc_local_name, 'rb')
-                    ser.storbinary('STOR ' + enc_local_name, fileChildServ)
-                    fileChildServ.close()
-                createPermission("insert", local_name, username, MAINSERVERHOST, MAINSERVERPORT)
-                print("-------File has uploaded successfully------\n\n")
-
-            #
-            except Exception as E:
-                print(E)
-
-    #
-    except Exception as E:
-        print(E)
-
-    #
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.connect((MAINSERVERHOST, MAINSERVERPORT))
-        sock.sendall(bytes("unlockfile:"+local_name+"\n", "utf-8"))
 
 #######################################################################################
 # update to SEDFS
@@ -706,11 +736,6 @@ def doEncrypt(content):
 
     # returns string, (convert from hex)
     return msg.hex()
-
-    data = bytes(content, 'utf-8')
-    msg = ciphers.encrypt(pad(data, BLOCK_SIZE))
-
-    return codecs.encode(msg, 'hex').decode("utf-8")
 
 
 #######################################################################################
