@@ -69,25 +69,21 @@ class SEDFS_handler(FTPHandler):
         return
 
     # CUSTOM function to return all files
-    def ftp_SITE_SENDALLFILES(self, doesntmatter):
+    def ftp_SITE_SENDALLFILES(self, file):
 
         serverLog.info("[*] Mainserver requests list of all files")
 
-        #list_of_files = get_all_file_names("SEDFS")
+        list_of_files = get_all_file_names("SEDFS")
 
         # make a file of all the known files to send
-        #file_a = open("knownfiles.txt", "w")
-        #for i in list_of_files:
-            #file_a.write(i)
+        file_a = open("knownfiles.txt", "w")
+        for i in list_of_files:
+            file_a.write(i)
 
         # close file
-        #file_a.close()
+        file_a.close()
 
-        #super(SEDFS_handler, self).ftp_RETR("knownfiles.txt")
-
-        self.respond("tessstttttt")
-
-
+        self.respond('500 success')
 
 
 

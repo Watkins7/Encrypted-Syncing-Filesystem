@@ -59,39 +59,42 @@ class UserHandler(socketserver.BaseRequestHandler):
 
             time.sleep(1)
             # check server's file list
+
+            # connect to the new FTP server
+            ftp = FTP()
+            ftp.connect(str(self.data.decode("utf-8").split(":")[1]), 50000)
+
+            # sign in with "MAIN" account
+            ftp.login(user='main', passwd='12345')
+
+            # request list of fileso
             try:
+                ftp.sendcmd("SITE SENDALLFILES x")
+                time.sleep(1)
+            except Exception as E:
+                print(E)
 
-                # connect to the new FTP server
-                ftp = FTP()
-                ftp.connect(str(self.data.decode("utf-8").split(":")[1]), 50000)
+            try:
+                with open('knownfiles.txt', 'wb') as fp:
+                    resp = ftp.retrbinary("RETR knownfiles.txt", fp.write)
+            except Exception as E:
+                print(resp, E)
 
-                # sign in with "MAIN" account
-                ftp.login(user='main', passwd='12345')
-
-                # make a local file
-                localfile = open("knownfiles.txt", 'wb')
-
-                # request list of files
-                data = ftp.sendcmd("SITE SENDALLFILES idk")
-
-                # quit FTP
-                ftp.quit()
-
-                print(data.encode())
+            # quit FTP
+            ftp.quit()
 
                 # get all the files on the permission server
-                permission_file_list = list_of_all_files("permissions.json")
+                #permission_file_list = list_of_all_files("permissions.json")
 
+
+                #localfile = open("knownfiles.txt", "r")
                 # check files
-                all_lines = localfile.readlines()
+                #all_lines = localfile.readlines()
 
                 # Look to see if every permission file is on the server
-                for i in permission_file_list:
-                    if i not in all_lines:
-                        print("Error ", i, " is not in the server")
-
-            except Exception as E:
-                serverLog.debug(E)
+                #for i in permission_file_list:
+                    #if i not in all_lines:
+                        #print("Error ", i, " is not in the server")
 
 
         # a server requests all of main's IPs
