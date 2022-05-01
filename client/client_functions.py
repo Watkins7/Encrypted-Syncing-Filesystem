@@ -104,9 +104,9 @@ def create_blank_file_or_directory(childServ, ftp, username, MAINSERVERHOST, MAI
 
             # ?????????????????
             try:
-                createPermission("insert", doEncrypt(client_file), username, MAINSERVERHOST, MAINSERVERPORT)
+                createPermission("insert", enc_client_file, username, MAINSERVERHOST, MAINSERVERPORT)
             except Exception as E:
-                print("Failed to create permissions")
+                print("Failed to create FILE permissions")
                 print(E)
 
         except Exception as e:
@@ -135,6 +135,12 @@ def create_blank_file_or_directory(childServ, ftp, username, MAINSERVERHOST, MAI
                 ser.mkd(client_directory)
 
             print("-------Directory creation completed successfully--------\n")
+
+            try:
+                createPermission("insert", client_directory, username, MAINSERVERHOST, MAINSERVERPORT)
+            except Exception as E:
+                print("Failed to create DIRECTORY permissions")
+                print(E)
 
         except Exception as e:
             print(" << ERROR:", e)
@@ -293,7 +299,7 @@ def delete(ftp, childServ, username, MAINSERVERHOST, MAINSERVERPORT):
 #######################################################################################
 # navigate to new folder
 #######################################################################################
-def navigate(ftp, childServ):
+def navigate(ftp, childServ, current):
 
     new_path = input("Enter new path\n >> ")
 
@@ -307,9 +313,12 @@ def navigate(ftp, childServ):
             ser.cwd(enc_new_path)
 
         print("-------Directory changed succesfully--------\n")
+        return new_path
 
     except Exception as e:
         print(e)
+
+    return current
 
 #######################################################################################
 # rename file on all known servers
@@ -354,7 +363,10 @@ def ftp_list(ftp):
         print("\n\n-------Begin of List------\n")
         li = ftp.nlst()
         for i in li:
-            print(doDecrypt(i))
+            try:
+                print(doDecrypt(i))
+            except Exception as E:
+                print("ERROR, could not decrypt " + i)
         print("\n-------End of List------\n\n")
 
     except Exception as E:

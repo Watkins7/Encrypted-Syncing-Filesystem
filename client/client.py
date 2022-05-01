@@ -1,6 +1,7 @@
 from ftplib import FTP
 import socket
 import client_functions
+import tests
 
 # Global Variables
 ServerPort = 50000  # server port
@@ -116,7 +117,7 @@ if __name__ == '__main__':
         # looping program
         while 1:
 
-            print("\n****** Current Directory : %s *******\n" % ftp.pwd())
+            print("\n****** Current Directory: /" + currentDirectory + " *******\n")
             print("Enter a command to perform operation or type 'h' to see the menu >> ", end='')
 
             # get client request
@@ -148,7 +149,7 @@ if __name__ == '__main__':
                 client_functions.update(ftp, username, MAINSERVERHOST, MAINSERVERPORT, childSer)
 
             elif clientRequest == "test" or clientRequest == "test":
-                client_functions.tests.test(ftp, childSer, MAINSERVERHOST, MAINSERVERPORT)
+                tests.test(ftp, childSer, MAINSERVERHOST, MAINSERVERPORT)
 
             # read
             elif clientRequest == "rename" or clientRequest == "u":
@@ -160,7 +161,7 @@ if __name__ == '__main__':
 
             # Navigate
             elif clientRequest == "n" or clientRequest == "navigate":
-                client_functions.navigate(ftp, childSer)
+                currentDirectory = client_functions.navigate(ftp, childSer, currentDirectory)
 
             # Navigate
             elif clientRequest == "k" or clientRequest == "chown":
@@ -169,6 +170,7 @@ if __name__ == '__main__':
             # Back 1 Directory
             elif clientRequest == "b" or clientRequest == "back":
                 client_functions.go_back(ftp, childSer)
+                currentDirectory = ftp.pwd()
 
             # Delete
             elif clientRequest == "d" or clientRequest == "delete":

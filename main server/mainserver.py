@@ -83,18 +83,24 @@ class UserHandler(socketserver.BaseRequestHandler):
             # quit FTP
             ftp.quit()
 
-                # get all the files on the permission server
-                #permission_file_list = list_of_all_files("permissions.json")
+            # get all the files on the permission server
+            permission_file_list = list_of_all_files("permissions.json")
 
 
-                #localfile = open("knownfiles.txt", "r")
-                # check files
-                #all_lines = localfile.readlines()
+            localfile = open("knownfiles.txt", "r")
+            # check files
+            all_lines = localfile.readlines()
 
-                # Look to see if every permission file is on the server
-                #for i in permission_file_list:
-                    #if i not in all_lines:
-                        #print("Error ", i, " is not in the server")
+            # Look to see if every permission file is on the server
+            for i in permission_file_list:
+                if i not in all_lines:
+                    log_event = "ERROR " + i + " NOT FOUND IN SEDFS!"
+                    serverLog.warning(log_event)
+
+            for i in all_lines:
+                if i not in permission_file_list:
+                    log_event = "ERROR " + i + " UNKNOWN FILE FOUND IN SEDFS!"
+                    serverLog.warning(log_event)
 
 
         # a server requests all of main's IPs

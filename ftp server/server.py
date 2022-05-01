@@ -16,13 +16,13 @@ from ftp_functions import get_all_file_names
 # Global Logger
 #################################################################################
 # Set global logging configuration
-logging.basicConfig(filename='fileServer.log', level=logging.DEBUG, filemode='w',
+logging.basicConfig(filename='fileServer.log', level=logging.INFO, filemode='w',
                     format='%(asctime)s\tLogger: %(name)s\tLevel: %(levelname)s\tEvent: %(message)s',
                     datefmt='%Y:%m:%d %H:%M:%S')
 
 # Create Logger
 # Create Logger Handler, set level to at least DEBUG
-serverLog = logging.getLogger("SEDFS Server")
+serverLog = logging.getLogger("SEDFS")
 loggingHandler = logging.StreamHandler(stream=sys.stdout)
 serverLog.addHandler(loggingHandler)
 serverLog.setLevel(logging.DEBUG)
@@ -83,7 +83,7 @@ class SEDFS_handler(FTPHandler):
         # close file
         file_a.close()
 
-        self.respond('500 success')
+        self.respond('500 SEDFS was able to compile a list of files on the system')
 
 
 
