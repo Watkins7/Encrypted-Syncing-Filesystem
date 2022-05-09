@@ -3,12 +3,13 @@ from pathlib import Path
 import io
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
+import getuserkey
+import random
 
-BLOCK_SIZE = 32
-key = 'abcdefghijklmnop'.encode()
-ciphers = AES.new(key, AES.MODE_ECB)
-decipher = AES.new(key, AES.MODE_ECB)
-
+# BLOCK_SIZE = 32
+# key = 'abcdefghijklmnop'.encode()
+# ciphers = AES.new(key, AES.MODE_ECB)
+# decipher = AES.new(key, AES.MODE_ECB)
 
 
 listOfYes = ["yes", "y", "YES", "Y"]
@@ -16,11 +17,6 @@ listOfNo = ["no", "n", "NO", "N"]
 is_file = ["F", "FILE", "f", "file", ]
 is_directory = ["D", "DIRECTORY", "d", "directory"]
 
-# crypto variables
-BLOCK_SIZE = 32
-KEY = "0123456789abcdef".encode()
-cipher = AES.new(KEY, AES.MODE_ECB)
-decipher = AES.new(KEY, AES.MODE_ECB)
 
 
 #######################################################################################
@@ -501,7 +497,7 @@ def uploadlocalfiles(ftp, childServ, username, MAINSERVERHOST, MAINSERVERPORT):
 
     except Exception as E:
         print(E)
-
+userrname = 'admin'
 
 #######################################################################################
 # write to SEDFS
@@ -615,7 +611,6 @@ def write(ftp, childServ, username, MAINSERVERHOST, MAINSERVERPORT):
             print(E)
 
 
-
 #######################################################################################
 # update to SEDFS
 #######################################################################################
@@ -679,6 +674,14 @@ def update(ftp, username, MAINSERVERHOST, MAINSERVERPORT, childServ):
         
     except Exception as E:
         print(E)
+
+# crypto variables
+BLOCK_SIZE = 32
+rand_num = random.randrange(1, 26, 1)
+encrypted_user_key = getuserkey.encrypt(userrname, rand_num)
+KEY = getuserkey.get_key(encrypted_user_key, rand_num).encode()
+cipher = AES.new(KEY, AES.MODE_ECB)
+decipher = AES.new(KEY, AES.MODE_ECB)
 
 #######################################################################################
 # read from sedfs
