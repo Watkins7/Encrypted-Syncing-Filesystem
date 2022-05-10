@@ -236,7 +236,7 @@ def delete(ftp, childServ, username, MAINSERVERHOST, MAINSERVERPORT):
     name = input("Enter name to delete\n >> ")
     li = ftp.nlst()
     token = doEncrypt(name)
-    permission = getPermission(name, username, MAINSERVERHOST, MAINSERVERPORT)
+    permission = getPermission(token, username, MAINSERVERHOST, MAINSERVERPORT)
     if permission != "owner" and permission != "RW" and permission != "W":
         print("You don't have sufficient rights to delete the file.")
         return
@@ -263,7 +263,7 @@ def delete(ftp, childServ, username, MAINSERVERHOST, MAINSERVERPORT):
             ftp.delete(token)
             for ser in childServ:
                 ser.delete(token)
-            delPermission(name, MAINSERVERHOST, MAINSERVERPORT)
+            delPermission(token, MAINSERVERHOST, MAINSERVERPORT)
             print("----------deletion successfully completed-------\n")
             return
 
@@ -273,17 +273,24 @@ def delete(ftp, childServ, username, MAINSERVERHOST, MAINSERVERPORT):
 
     #
     else:
-        print("Enter existing path\n >> ", end='')
+        print("Enter new existing path\n >> ", end='')
         new_path = input()
-
+        token = doEncrypt(new_path)
+        permission = getPermission(token, username, MAINSERVERHOST, MAINSERVERPORT)
+        if permission != "owner" and permission != "RW" and permission != "W":
+            print("You don't have sufficient rights to delete the file.")
+            return
         #
         try:
-            ftp.delete(new_path + name)
+            if not token in li:
+                print("No such File found.....Please enter correct file name")
+                return   
+            ftp.delete(token)
 
             #
             for ser in childServ:
-                ser[0].delete(new_path + name)
-            delPermission(name, MAINSERVERHOST, MAINSERVERPORT)
+                ser[0].delete(token)
+            delPermission(token, MAINSERVERHOST, MAINSERVERPORT)
             print("----------deletion successfully completed-------\n")
             return
 
@@ -347,7 +354,7 @@ def rename(ftp, childServ, MAINSERVERHOST, MAINSERVERPORT):
             print(resp)
             print("------FAILED to rename file in ONE or MORE child servers-------\n")
             return
-    updatePermission(old_name, new_name, MAINSERVERHOST, MAINSERVERPORT)
+    updatePermission(enc_old_name, enc_new_name, MAINSERVERHOST, MAINSERVERPORT)
     print("------File renaming is completed succesfully-------\n")
 
 #######################################################################################
@@ -377,7 +384,7 @@ def change_permissions(username, MAINSERVERHOST, MAINSERVERPORT):
     # encrypt file name
     filename = input("Input filename\n >> ")
     enc_filename = doEncrypt(filename)
-    getper = getPermission(filename, username, MAINSERVERHOST, MAINSERVERPORT)
+    getper = getPermission(enc_filename, username, MAINSERVERHOST, MAINSERVERPORT)
     if getper != "owner":
         print("You don't have enough rights to change permissions for the selected file")
         return
@@ -394,7 +401,8 @@ def change_permissions(username, MAINSERVERHOST, MAINSERVERPORT):
     user['per'] = per
     #
     try:
-        createPermission("update", filename, "", MAINSERVERHOST, MAINSERVERPORT, user)
+        createPermission("update", enc_filename, "", MAINSERVERHOST, MAINSERVERPORT, user)
+        print("Permissions assigned successfully...!!!")
 
 
     except Exception as E:
@@ -491,7 +499,7 @@ def uploadlocalfiles(ftp, childServ, username, MAINSERVERHOST, MAINSERVERPORT):
             fileChildServ = open(enc_local_name, 'rb')
             ser.storbinary('STOR ' + enc_local_name, fileChildServ)
             fileChildServ.close()
-        createPermission("insert", local_name, username, MAINSERVERHOST, MAINSERVERPORT)
+        createPermission("insert", enc_local_name, username, MAINSERVERHOST, MAINSERVERPORT)
         os.remove(enc_local_name)
         print("-------File has uploaded successfully------\n\n")
 
@@ -509,10 +517,6 @@ def write(ftp, childServ, username, MAINSERVERHOST, MAINSERVERPORT):
     local_name = input("Enter Local file path to write\n >> ")
     enc_local_name = doEncrypt(local_name)
 
-    # Get contents of file to encrypt
-    newcontent = input("---------Enter content to append in the file\n------")
-    enc_newcontent = doEncrypt(newcontent)
-
     # get list all the files
     filenames = ftp.nlst()
 
@@ -520,12 +524,12 @@ def write(ftp, childServ, username, MAINSERVERHOST, MAINSERVERPORT):
     if enc_local_name in filenames:
 
         # check if permissions are valid
-        getper = getPermission(local_name, username, MAINSERVERHOST, MAINSERVERPORT)
+        getper = getPermission(enc_local_name, username, MAINSERVERHOST, MAINSERVERPORT)
         if getper != "owner" and getper != "RW" and getper != "W":
             print("You don't have enough rights to  write for the selected file")
             return
 
-        print("File found on server.")
+        print("File already found on server. Appending your contents at the end of the file")
 
         # lock the file on main server
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
@@ -537,24 +541,16 @@ def write(ftp, childServ, username, MAINSERVERHOST, MAINSERVERPORT):
         ftp.retrbinary('RETR %s' % enc_local_name, file.write)
         file.close()
 
-        # Show what it is in the file
         print("\n\n-------Begin of current content------\n")
-        a_file = open(enc_local_name)
-
-        # read encrypted file
-        file_contents = a_file.read()
-
-        # decrypt file
-        file_contents = doDecrypt(file_contents)
-
-        # print file
-        print(file_contents)
-
+        ftp.retrlines("RETR " + enc_local_name, fileLinePrinting)
         print("\n-------EOF------\n\n")
+        # Get contents of file to encrypt
+        newcontent = input("---------Enter content to write in the file\n------")
+        enc_newcontent = doEncrypt(newcontent)
 
-        # append new content
-        a_file.write(enc_newcontent)
-        a_file.close()
+        file = open(enc_local_name, 'a')
+        file.write(enc_newcontent)
+        file.close()
 
         # reopen appended file and send to MAIN FTP
         file1 = open(enc_local_name, 'rb')
@@ -579,7 +575,8 @@ def write(ftp, childServ, username, MAINSERVERHOST, MAINSERVERPORT):
 
         # Make a new file
         print("File not found on server, making new file")
-
+        newcontent = input("---------Enter content to write in the file\n------")
+        enc_newcontent = doEncrypt(newcontent)
         file = open(enc_local_name, 'w')
         file.write(enc_newcontent)
         file.close()
@@ -620,7 +617,7 @@ def update(ftp, username, MAINSERVERHOST, MAINSERVERPORT, childServ):
     sedfs_name = input("Enter SEDFS file path to download\n >> ")
     enc_sedfs_name = doEncrypt(sedfs_name)
 
-    getper = getPermission(sedfs_name, username, MAINSERVERHOST, MAINSERVERPORT)
+    getper = getPermission(enc_sedfs_name, username, MAINSERVERHOST, MAINSERVERPORT)
     if getper != "owner" and getper != "RW" and getper!="W":
         print("You don't have enough rights to  write for the selected file")
         return
@@ -692,7 +689,7 @@ def read(ftp, username, MAINSERVERHOST, MAINSERVERPORT):
     sedfs_name = input("Enter SEDFS file path to download\n >> ")
     enc_sedfs_name = doEncrypt(sedfs_name)
     
-    getper = getPermission(sedfs_name, username, MAINSERVERHOST, MAINSERVERPORT)
+    getper = getPermission(enc_sedfs_name, username, MAINSERVERHOST, MAINSERVERPORT)
     if getper != "owner" and getper != "RW" and getper!="W" and getper!="R":
         print("You don't have enough rights to  write for the selected file")
         return
